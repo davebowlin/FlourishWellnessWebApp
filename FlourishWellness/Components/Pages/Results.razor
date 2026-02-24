@@ -1,0 +1,204 @@
+@using FlourishWellness.Models
+@using FlourishWellness.Services
+@using Microsoft.AspNetCore.Components.Web
+@using System.Text
+
+@page "/results"
+@inject SurveyService SurveyService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject LogService LogService
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Survey Results</PageTitle>
+
+<h3>Survey Results</h3>
+
+@if (sections is null)
+{
+    <p><em>Loading results...</em></p>
+}
+else if (!sections.Any())
+{
+    <p><em>No survey data available yet.</em></p>
+}
+else if (!HasAnyResponses(sections))
+{
+    <p><em>No responses have been submitted yet.</em></p>
+}
+else
+{
+    <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+        <button @onclick="LoadResults"
+                style="padding: 10px 30px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+            Refresh Results
+        </button>
+        <button @onclick="ExportToCSV"
+                style="padding: 10px 30px; background-color: #17a2b8; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+            Export to CSV
+        </button>
+    </div>
+
+    @foreach (var sec in sections)
+    {
+        @RenderResultsSection(sec, 0)
+    }
+}
+
+@code {
+    private List<Section>? sections;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await AuthStateService.InitializeAsync();
+            await AuthStateService.RefreshCurrentUserAsync();
+
+            if (!(AuthStateService.IsAdmin || AuthStateService.IsManager))
+            {
+                await LogService.LogAsync("Unauthorized results page access attempt", AuthStateService.CurrentUser?.Email ?? "Unknown");
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            await LoadResults();
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error in Results OnInitializedAsync: {ex.Message}", "System");
+            Console.WriteLine($"Results page error: {ex}");
+            sections = new List<Section>();
+        }
+    }
+
+    private async Task LoadResults()
+    {
+        try
+        {
+            sections = await SurveyService.GetSectionsWithResponsesAsync();
+            if (sections == null)
+            {
+                sections = new List<Section>();
+            }
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error loading results: {ex.Message}", "System");
+            sections = new List<Section>();
+        }
+    }
+
+    private bool HasAnyResponses(List<Section> secs)
+    {
+        foreach (var sec in secs)
+        {
+            if (sec.Questions.Any(q => q.Responses.Any()))
+                return true;
+            if (sec.Subsections.Any() && HasAnyResponses(sec.Subsections))
+                return true;
+        }
+        return false;
+    }
+
+    private RenderFragment RenderResultsSection(Section sec, int level) => builder =>
+    {
+        var hasResponses = sec.Questions.Any(q => q.Responses.Any());
+        var hasSubsectionResponses = sec.Subsections.Any() && HasAnyResponses(sec.Subsections);
+
+        if (!hasResponses && !hasSubsectionResponses)
+            return;
+
+        var marginLeft = level * 20;
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;");
+
+        builder.OpenElement(2, "h4");
+        builder.AddAttribute(3, "style", "margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;");
+        builder.AddContent(4, level > 0 ? $"? {sec.Name}" : sec.Name);
+        builder.CloseElement();
+
+        foreach (var question in sec.Questions)
+        {
+            if (question.Responses.Any())
+            {
+                builder.OpenElement(5, "div");
+                builder.AddAttribute(6, "style", "margin: 20px 0; padding: 15px; background-color: white; border-radius: 5px;");
+
+                builder.OpenElement(7, "h5");
+                builder.AddAttribute(8, "style", "color: #555; margin-top: 0;");
+                builder.AddContent(9, question.Text);
+                builder.CloseElement();
+
+                builder.OpenElement(10, "p");
+                builder.AddAttribute(11, "style", "color: #666; font-size: 14px; margin-bottom: 10px;");
+                builder.OpenElement(12, "strong");
+                builder.AddContent(13, question.Responses.Count.ToString());
+                builder.CloseElement();
+                builder.AddContent(14, " response(s)");
+                builder.CloseElement();
+
+                builder.OpenElement(15, "ul");
+                builder.AddAttribute(16, "style", "list-style-type: none; padding-left: 0;");
+
+                foreach (var response in question.Responses)
+                {
+                    var respondentName = !string.IsNullOrWhiteSpace(response.User?.FullName)
+                        ? response.User.FullName
+                        : response.User?.Email ?? "Unknown User";
+
+                    builder.OpenElement(17, "li");
+                    builder.AddAttribute(18, "style", "padding: 8px; margin: 5px 0; background-color: #f0f0f0; border-left: 3px solid #007bff; border-radius: 3px;");
+                    builder.AddContent(19, $"{respondentName}: {response.Answer}");
+                    builder.CloseElement();
+                }
+
+                builder.CloseElement();
+                builder.CloseElement();
+            }
+        }
+
+        builder.CloseElement();
+
+        foreach (var subsec in sec.Subsections)
+        {
+            builder.AddContent(20, RenderResultsSection(subsec, level + 1));
+        }
+    };
+
+    private async Task ExportToCSV()
+    {
+        if (sections == null || !sections.Any()) return;
+
+        var csv = new StringBuilder();
+        csv.AppendLine("Section,Question,Response");
+
+        ExportSectionToCSV(sections, csv);
+
+        var bytes = Encoding.UTF8.GetBytes(csv.ToString());
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"SurveyResults_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private void ExportSectionToCSV(List<Section> secs, StringBuilder csv)
+    {
+        foreach (var sec in secs)
+        {
+            foreach (var question in sec.Questions)
+            {
+                foreach (var response in question.Responses)
+                {
+                    csv.AppendLine($"\"{sec.Name}\",\"{question.Text}\",\"{response.Answer}\"");
+                }
+            }
+            if (sec.Subsections.Any())
+            {
+                ExportSectionToCSV(sec.Subsections, csv);
+            }
+        }
+    }
+}

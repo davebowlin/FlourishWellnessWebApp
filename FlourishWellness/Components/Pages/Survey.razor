@@ -1,0 +1,327 @@
+@using FlourishWellness.Models
+@using FlourishWellness.Services
+@using Microsoft.AspNetCore.Components.Web
+
+@page "/survey"
+@inject SurveyService SurveyService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+@inject LogService LogService
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Wellness Survey</PageTitle>
+
+<h3>Wellness Assessment Survey</h3>
+
+@if (sections is null)
+{
+    <p><em>Loading survey...</em></p>
+}
+else if (!sections.Any())
+{
+    <p><em>No survey questions available yet. Please contact an administrator.</em></p>
+}
+else
+{
+    @if (submitted)
+    {
+        <div style="padding: 20px; margin-bottom: 20px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; color: #155724;">
+            <h4>Survey previously submitted</h4>
+            <p>Your saved responses are loaded below. You can continue editing and re-submit.</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(saveMessage))
+    {
+        <div style="position: fixed; top: 20px; right: 20px; padding: 15px; background-color: #d4edda; color: #155724; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000;">
+            @saveMessage
+        </div>
+    }
+
+    @foreach (var sec in sections)
+    {
+        @RenderSectionSurvey(sec, 0)
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div style="padding: 10px; margin: 10px 0; background-color: #f8d7da; color: #721c24; border-radius: 4px;">
+            @errorMessage
+        </div>
+    }
+
+    <button @onclick="SubmitSurvey"
+            style="padding: 12px 40px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 20px 0; font-weight: 500;">
+        Submit Survey
+    </button>
+}
+
+@code {
+    private List<Section>? sections;
+    private Dictionary<int, string> responses = new();
+    private bool submitted = false;
+    private string errorMessage = string.Empty;
+    private string saveMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await AuthStateService.InitializeAsync();
+            await AuthStateService.RefreshCurrentUserAsync();
+            
+            if (AuthStateService.CurrentUser != null)
+            {
+                submitted = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id);
+                await LogService.LogAsync("Started/Resumed survey", AuthStateService.CurrentUser.Email);
+                await LoadSurvey();
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error in Survey OnInitializedAsync: {ex.Message}", "System");
+            Console.WriteLine($"Survey page error: {ex}");
+        }
+    }
+
+    private async Task LoadSurvey()
+    {
+        try
+        {
+            sections = await SurveyService.GetSectionsAsync();
+
+            if (sections != null)
+            {
+                // Load existing responses
+                if (AuthStateService.CurrentUser != null)
+                {
+                    var existingResponses = await SurveyService.GetUserResponsesAsync(AuthStateService.CurrentUser.Id);
+                    foreach (var kvp in existingResponses)
+                    {
+                        responses[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                foreach (var sec in sections)
+                {
+                    InitializeResponses(sec);
+                }
+            }
+            else
+            {
+                sections = new List<Section>();
+            }
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error loading survey: {ex.Message}", "System");
+            sections = new List<Section>();
+        }
+    }
+
+    private void InitializeResponses(Section sec)
+    {
+        foreach (var question in sec.Questions)
+        {
+            if (!responses.ContainsKey(question.Id))
+            {
+                responses[question.Id] = string.Empty;
+            }
+        }
+        foreach (var subsec in sec.Subsections)
+        {
+            InitializeResponses(subsec);
+        }
+    }
+
+    private RenderFragment RenderSectionSurvey(Section sec, int level) => builder =>
+    {
+        var marginLeft = level * 20;
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;");
+
+        builder.OpenElement(2, "h4");
+        builder.AddAttribute(3, "style", "margin-top: 0; margin-bottom: 20px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;");
+        builder.AddContent(4, level > 0 ? $"? {sec.Name}" : sec.Name);
+        builder.CloseElement();
+
+        if (sec.Questions.Any())
+        {
+            builder.OpenElement(5, "table");
+            builder.AddAttribute(6, "style", "width: 100%; border-collapse: collapse; background-color: white;");
+
+            builder.OpenElement(7, "thead");
+            builder.OpenElement(8, "tr");
+            builder.AddAttribute(9, "style", "background-color: #007bff; color: white;");
+
+            builder.OpenElement(10, "th");
+            builder.AddAttribute(11, "style", "padding: 12px; text-align: left; border: 1px solid #ddd; width: 50%;");
+            builder.AddContent(12, "Question");
+            builder.CloseElement();
+
+            builder.OpenElement(13, "th");
+            builder.AddAttribute(14, "style", "padding: 12px; text-align: center; border: 1px solid #ddd; width: 16.66%;");
+            builder.AddContent(15, "Fully Implemented");
+            builder.CloseElement();
+
+            builder.OpenElement(16, "th");
+            builder.AddAttribute(17, "style", "padding: 12px; text-align: center; border: 1px solid #ddd; width: 16.66%;");
+            builder.AddContent(18, "Partially Implemented");
+            builder.CloseElement();
+
+            builder.OpenElement(19, "th");
+            builder.AddAttribute(20, "style", "padding: 12px; text-align: center; border: 1px solid #ddd; width: 16.66%;");
+            builder.AddContent(21, "Not a Current Practice");
+            builder.CloseElement();
+
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.OpenElement(22, "tbody");
+
+            foreach (var question in sec.Questions)
+            {
+                var questionId = question.Id;
+                builder.OpenElement(23, "tr");
+                builder.AddAttribute(24, "style", "border-bottom: 1px solid #ddd;");
+
+                builder.OpenElement(25, "td");
+                builder.AddAttribute(26, "style", "padding: 12px; border: 1px solid #ddd; vertical-align: middle;");
+                builder.OpenElement(27, "span");
+                builder.AddAttribute(28, "style", "font-weight: 500; color: #333;");
+                builder.AddContent(29, question.Text);
+                builder.CloseElement();
+                builder.CloseElement();
+
+                builder.OpenElement(30, "td");
+                builder.AddAttribute(31, "style", "padding: 12px; border: 1px solid #ddd; text-align: center; vertical-align: middle;");
+                builder.OpenElement(32, "input");
+                builder.AddAttribute(33, "type", "radio");
+                builder.AddAttribute(34, "name", $"question_{questionId}");
+                builder.AddAttribute(35, "value", "Fully Implemented");
+                builder.AddAttribute(36, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Fully Implemented")));
+                builder.AddAttribute(37, "checked", responses.GetValueOrDefault(questionId) == "Fully Implemented");
+                builder.AddAttribute(38, "style", "cursor: pointer; width: 18px; height: 18px;");
+                builder.CloseElement();
+                builder.CloseElement();
+
+                builder.OpenElement(39, "td");
+                builder.AddAttribute(40, "style", "padding: 12px; border: 1px solid #ddd; text-align: center; vertical-align: middle;");
+                builder.OpenElement(41, "input");
+                builder.AddAttribute(42, "type", "radio");
+                builder.AddAttribute(43, "name", $"question_{questionId}");
+                builder.AddAttribute(44, "value", "Partially Implemented");
+                builder.AddAttribute(45, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Partially Implemented")));
+                builder.AddAttribute(46, "checked", responses.GetValueOrDefault(questionId) == "Partially Implemented");
+                builder.AddAttribute(47, "style", "cursor: pointer; width: 18px; height: 18px;");
+                builder.CloseElement();
+                builder.CloseElement();
+
+                builder.OpenElement(48, "td");
+                builder.AddAttribute(49, "style", "padding: 12px; border: 1px solid #ddd; text-align: center; vertical-align: middle;");
+                builder.OpenElement(50, "input");
+                builder.AddAttribute(51, "type", "radio");
+                builder.AddAttribute(52, "name", $"question_{questionId}");
+                builder.AddAttribute(53, "value", "Not a Current Practice");
+                builder.AddAttribute(54, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Not a Current Practice")));
+                builder.AddAttribute(55, "checked", responses.GetValueOrDefault(questionId) == "Not a Current Practice");
+                builder.AddAttribute(56, "style", "cursor: pointer; width: 18px; height: 18px;");
+                builder.CloseElement();
+                builder.CloseElement();
+
+                builder.CloseElement();
+            }
+
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+
+        foreach (var subsec in sec.Subsections)
+        {
+            builder.AddContent(57, RenderSectionSurvey(subsec, level + 1));
+        }
+
+        // Add Save Progress button at the bottom of the section
+        builder.OpenElement(58, "div");
+        builder.AddAttribute(59, "style", "margin-top: 15px; text-align: right;");
+        builder.OpenElement(60, "button");
+        builder.AddAttribute(61, "onclick", EventCallback.Factory.Create(this, SaveProgress));
+        builder.AddAttribute(62, "style", "padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;");
+        builder.AddContent(63, "Save Progress");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private void UpdateResponse(int questionId, string value)
+    {
+        responses[questionId] = value;
+        errorMessage = string.Empty; // Clear error on change
+        saveMessage = string.Empty;
+    }
+
+    private async Task SaveProgress()
+    {
+        if (AuthStateService.CurrentUser == null) return;
+
+        await SurveyService.SaveUserResponsesAsync(AuthStateService.CurrentUser.Id, responses);
+        saveMessage = "Progress saved successfully!";
+        await LogService.LogAsync("Saved survey progress", AuthStateService.CurrentUser.Email);
+        
+        // Clear message after 3 seconds
+        _ = Task.Delay(3000).ContinueWith(_ => InvokeAsync(() => { saveMessage = string.Empty; StateHasChanged(); }));
+    }
+
+    private async Task SubmitSurvey()
+    {
+        if (AuthStateService.CurrentUser == null) return;
+
+        // Validate all questions answered
+        var allQuestions = GetAllQuestions(sections);
+        var unanswered = allQuestions.Where(q => !responses.ContainsKey(q.Id) || string.IsNullOrWhiteSpace(responses[q.Id])).ToList();
+
+        if (unanswered.Any())
+        {
+            errorMessage = $"Please answer all questions before submitting. ({unanswered.Count} remaining)";
+            return;
+        }
+
+        // Save final responses
+        await SurveyService.SaveUserResponsesAsync(AuthStateService.CurrentUser.Id, responses);
+        
+        // Mark complete
+        var completed = await SurveyService.CompleteSurveyAsync(AuthStateService.CurrentUser.Id);
+        if (!completed)
+        {
+            errorMessage = "Unable to submit until every question has a saved answer.";
+            return;
+        }
+
+        submitted = true;
+        await LogService.LogAsync("Submitted survey", AuthStateService.CurrentUser.Email);
+    }
+
+    private List<Question> GetAllQuestions(List<Section>? sections)
+    {
+        var questions = new List<Question>();
+        if (sections == null) return questions;
+
+        foreach (var sec in sections)
+        {
+            questions.AddRange(sec.Questions);
+            questions.AddRange(GetAllQuestions(sec.Subsections));
+        }
+        return questions;
+    }
+
+    private void ResetSurvey()
+    {
+        // Resetting is not allowed per requirements once submitted. We can change this if needed in the future.
+    }
+}

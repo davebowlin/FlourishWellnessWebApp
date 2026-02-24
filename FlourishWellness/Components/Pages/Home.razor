@@ -1,0 +1,69 @@
+﻿@page "/"
+@using FlourishWellness.Services
+@inject NavigationManager NavigationManager
+@inject AuthStateService AuthStateService
+
+<PageTitle>Home - FlourishWellness</PageTitle>
+
+<div style="text-align: center; padding: 40px 0;">
+    <h1 style="color: #007bff; font-size: 48px; margin-bottom: 20px;">Wellness Flourish</h1>
+    <p style="font-size: 20px; color: #666; margin-bottom: 40px;">
+        An AmericareUSA Initiative
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 50px;">
+        <div style="padding: 30px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+            <h3 style="color: #6f42c1; margin-top: 0;">📊 Dashboard</h3>
+            <p style="color: #666; margin-bottom: 20px;">
+                View analytics, statistics, and insights about survey responses.
+            </p>
+            <a href="/dashboard" style="display: inline-block; padding: 10px 30px; background-color: #6f42c1; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
+                View Dashboard
+            </a>
+        </div>
+
+        <div style="padding: 30px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+            <h3 style="color: #007bff; margin-top: 0;">📋 Take Survey</h3>
+            <p style="color: #666; margin-bottom: 20px;">
+                Complete our wellness assessment to help us understand your needs better.
+            </p>
+            <a href="/survey" style="display: inline-block; padding: 10px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
+                Start Survey
+            </a>
+        </div>
+
+        @if (AuthStateService.IsManager || AuthStateService.IsAdmin)
+        {
+            <div style="padding: 30px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <h3 style="color: #28a745; margin-top: 0;">📑 View Results</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Review all submitted survey responses organized by category.
+                </p>
+                <a href="/results" style="display: inline-block; padding: 10px 30px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
+                    View Results
+                </a>
+            </div>
+        }
+
+        @if (AuthStateService.IsAdmin)
+        {
+            <div style="padding: 30px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <h3 style="color: #dc3545; margin-top: 0;">⚙️ Admin Panel</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Manage survey sections and questions for the assessment.
+                </p>
+                <a href="/admin" style="display: inline-block; padding: 10px 30px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
+                    Go to Admin
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateService.InitializeAsync();
+        await AuthStateService.RefreshCurrentUserAsync();
+    }
+}

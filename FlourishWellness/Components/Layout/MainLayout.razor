@@ -1,0 +1,166 @@
+﻿@using FlourishWellness.Services
+@using FlourishWellness.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject LogService LogService
+@inject ADUserService ADUserService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject AuthStateService AuthStateService
+@implements IDisposable
+
+<div class="page">
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-header">
+                <a href="/" class="nav-brand">
+                    <img src="images/logo.svg" alt="AmericareUSA Logo" />
+                    <span>AmericareUSA</span>
+                </a>
+                <button class="navbar-toggler" @onclick="ToggleNavMenu">
+                    <span class="navbar-toggler-icon">☰</span>
+                </button>
+            </div>
+
+            <div class="@NavMenuCssClass">
+                <div class="nav-links">
+                    <a href="/dashboard" class="nav-link">Dashboard</a>
+                    @if (canAccessAdmin)
+                    {
+                        <a href="/admin" class="nav-link">Admin</a>
+                    }
+                    else
+                    {
+                        <a href="/admin-login" class="nav-link">Admin Login</a>
+                    }
+                    @if (canViewResults)
+                    {
+                        <a href="/results" class="nav-link">View Results</a>
+                    }
+                    <a href="/survey" class="nav-link">Take Survey</a>
+                </div>
+
+                <div class="nav-user">
+                    <span class="user-email">@displayUserName</span>
+                    @if (showDefaultAdminLogout)
+                    {
+                        <button class="btn-logout" @onclick="LogoutAsync">LOGOUT</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        @Body
+    </main>
+
+    <footer>
+        <p>&copy; 2026 AmericareUSA - Survey Platform</p>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private string displayUserName = "Guest User";
+    private bool canAccessAdmin;
+    private bool canViewResults;
+    private bool showDefaultAdminLogout;
+    private string? NavMenuCssClass => collapseNavMenu ? "nav-menu collapse" : "nav-menu";
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += HandleLocationChanged;
+        AuthStateService.OnAuthStateChanged += HandleAuthStateChanged;
+
+        try
+        {
+            await AuthStateService.InitializeAsync();
+            await AuthStateService.RefreshCurrentUserAsync();
+
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            await UpdateDisplayStateAsync(authState.User);
+        }
+        catch (Exception ex)
+        {
+            // Fallback so the page still loads
+            displayUserName = "User Error";
+            Console.WriteLine($"Auth Error: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateDisplayStateAsync(System.Security.Claims.ClaimsPrincipal user)
+    {
+        var currentUser = AuthStateService.CurrentUser;
+
+        if (currentUser != null)
+        {
+            displayUserName = !string.IsNullOrWhiteSpace(currentUser.FullName)
+                ? currentUser.FullName
+                : currentUser.Email;
+            canAccessAdmin = currentUser.Role == UserRole.Admin;
+            canViewResults = currentUser.Role == UserRole.Admin || currentUser.Role == UserRole.Manager;
+            showDefaultAdminLogout = string.Equals(currentUser.Email, "admin", StringComparison.OrdinalIgnoreCase);
+            return;
+        }
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var fullName = ADUserService.GetFullName(user);
+            displayUserName = !string.IsNullOrWhiteSpace(fullName)
+                ? fullName
+                : (user.Identity.Name ?? "Authenticated User");
+        }
+        else
+        {
+            displayUserName = "Guest User";
+        }
+
+        canAccessAdmin = false;
+        canViewResults = false;
+        showDefaultAdminLogout = false;
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthStateService.LogoutAsync();
+        NavigationManager.NavigateTo("/admin-login", forceLoad: false);
+    }
+
+    private async void HandleAuthStateChanged()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            await UpdateDisplayStateAsync(authState.User);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // no-op
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        collapseNavMenu = true;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+        AuthStateService.OnAuthStateChanged -= HandleAuthStateChanged;
+    }
+}

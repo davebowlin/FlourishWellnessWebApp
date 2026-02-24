@@ -1,0 +1,75 @@
+@using FlourishWellness.Services
+@using Microsoft.AspNetCore.Authorization
+@page "/admin-login"
+@attribute [AllowAnonymous]
+@inject AuthService AuthService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+@inject LogService LogService
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Admin Login</PageTitle>
+
+<h3 style="text-align: center;">Admin Login</h3>
+
+<div style="display: flex; justify-content: center;">
+    <div
+        style="width: 100%; max-width: 420px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div style="margin-bottom: 15px; padding: 10px; border-radius: 4px; background-color: #f8d7da; color: #721c24;">
+                @errorMessage
+            </div>
+        }
+
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 6px;">Username</label>
+            <input @bind="username" autocomplete="off"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+        </div>
+
+        <div style="margin-bottom: 18px;">
+            <label style="display: block; margin-bottom: 6px;">Password</label>
+            <input @bind="password" type="password" autocomplete="off"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+        </div>
+
+        <button @onclick="LoginAsync"
+                style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Login as Admin
+        </button>
+    </div>
+</div>
+
+@code {
+    private string username = string.Empty;
+    private string password = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateService.InitializeAsync();
+        await AuthStateService.RefreshCurrentUserAsync();
+
+        if (AuthStateService.IsAdmin)
+        {
+            NavigationManager.NavigateTo("/admin");
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        errorMessage = string.Empty;
+
+        var user = await AuthService.AuthenticateLocalAdminAsync(username, password);
+        if (user == null)
+        {
+            errorMessage = "Invalid admin credentials.";
+            await LogService.LogAsync("Failed local admin login attempt", username);
+            return;
+        }
+
+        await AuthStateService.SetUserAsync(user);
+        NavigationManager.NavigateTo("/admin", forceLoad: false);
+    }
+}

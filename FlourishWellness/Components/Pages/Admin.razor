@@ -1,0 +1,890 @@
+﻿@using FlourishWellness.Models
+@using FlourishWellness.Services
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+@page "/admin"
+@inject SurveyService SurveyService
+@inject AuthService AuthService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+@inject LogService LogService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Admin - FlourishWellness</PageTitle>
+
+<h3>Admin Panel</h3>
+
+<div style="margin-bottom: 20px;">
+    <button @onclick="@(() => activeTab = "survey")"
+            style="@(activeTab == "survey" ? "background-color: #007bff; color: white;" : "background-color: #f8f9fa; color: #333;") padding: 10px 20px; border: 1px solid #ddd; border-radius: 4px 0 0 4px; cursor: pointer;">
+        Manage Survey
+    </button>
+    <button @onclick="@(() => activeTab = "users")"
+            style="@(activeTab == "users" ? "background-color: #007bff; color: white;" : "background-color: #f8f9fa; color: #333;") padding: 10px 20px; border: 1px solid #ddd; border-left: none; border-right: none; cursor: pointer;">
+        Manage Users
+    </button>
+    <button @onclick="@(() => LoadLogs())"
+            style="@(activeTab == "logs" ? "background-color: #007bff; color: white;" : "background-color: #f8f9fa; color: #333;") padding: 10px 20px; border: 1px solid #ddd; border-radius: 0 4px 4px 0; cursor: pointer;">
+        System Logs
+    </button>
+</div>
+
+@if (activeTab == "survey")
+{
+    @if (sections is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <h4 style="margin-top: 20px;">Manage Sections and Questions</h4>
+
+        <div
+            style="margin: 15px 0 25px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f8f9fa;">
+            <h5 style="margin-top: 0;">Survey Year Management</h5>
+            <p style="margin: 5px 0 15px 0;">
+                Active Survey Year:
+                <strong>@(activeSurveyEntity is null ? "None" : activeSurveyEntity.Year.ToString())</strong>
+                (@(activeSurveyEntity is null ? "Unknown" : activeSurveyEntity.Status.ToString()))
+            </p>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button @onclick="ArchiveCurrentAndCreateNextYear"
+                        style="padding: 8px 14px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Archive Current + Create Next Year
+                </button>
+                <button @onclick="LoadSurveyEntities"
+                        style="padding: 8px 14px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Refresh Years
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(surveyEntityMessage))
+            {
+                <div style="padding: 10px; border-radius: 4px; margin-bottom: 10px; @(surveyEntityMessageIsError ? "background-color: #f8d7da; color: #721c24;" : "background-color: #d4edda; color: #155724;")">
+                    @surveyEntityMessage
+                </div>
+            }
+
+            @if (surveyEntities.Any())
+            {
+                <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
+                    <thead>
+                        <tr style="background-color: #e9ecef; border-bottom: 1px solid #ced4da;">
+                            <th style="padding: 8px; text-align: left;">Year</th>
+                            <th style="padding: 8px; text-align: left;">Status</th>
+                            <th style="padding: 8px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entity in surveyEntities)
+                        {
+                            <tr style="border-bottom: 1px solid #dee2e6;">
+                                <td style="padding: 8px;">@entity.Year</td>
+                                <td style="padding: 8px;">
+                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; @(entity.Status == SurveyEntityStatus.Active ? "background-color: #28a745; color: white;" : "background-color: #6c757d; color: white;")">
+                                        @entity.Status
+                                    </span>
+                                </td>
+                                <td style="padding: 8px; text-align: right;">
+                                    @if (entity.Status != SurveyEntityStatus.Active)
+                                    {
+                                        <button @onclick="@(() => ActivateSurveyEntity(entity.Id))"
+                                                style="padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                            Set ACTIVE
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @foreach (var sec in sections)
+        {
+            <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                @RenderSection(sec, 0)
+            </div>
+        }
+
+        <h4>Add New Section</h4>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+            <input @bind="newSectionName" placeholder="Enter section name"
+                   style="width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+            <select @bind="newSectionParentId" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="">-- Top Level Section --</option>
+                @foreach (var sec in sections)
+                {
+                    <option value="@sec.Id">@sec.Name (Subsection)</option>
+                }
+            </select>
+            <button @onclick="HandleAddSection"
+                    style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
+                Section</button>
+            </div>
+
+            <div style="margin-top: 40px; padding: 20px; border: 2px solid #dc3545; border-radius: 8px; background-color: #fff5f5;">
+                <h4 style="color: #dc3545; margin-top: 0;">⚠️ Danger Zone</h4>
+                <p style="color: #721c24; margin-bottom: 15px;">
+                    <strong>Warning:</strong> This action will permanently delete ALL survey responses from the database.
+                    Sections and questions will remain intact. This cannot be undone!
+                </p>
+                <button @onclick="ClearAllResponses"
+                        style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    Clear All Responses
+                </button>
+                @if (!string.IsNullOrEmpty(clearResponsesMessage))
+                {
+                    <p style="margin-top: 10px; color: @(clearResponsesMessageIsError ? "#dc3545" : "#28a745"); font-weight: 500;">
+                        @clearResponsesMessage</p>
+                    }
+                </div>
+            }
+        }
+else if (activeTab == "users")
+        {
+            <h4 style="margin-top: 20px;">Manage Users</h4>
+
+            <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <h5>Add New User</h5>
+                @if (!string.IsNullOrEmpty(userMessage))
+                {
+                    <div style="padding: 10px; margin-bottom: 15px; border-radius: 4px; @(userMessageIsError ? "background-color: #f8d7da; color: #721c24;" : "background-color: #d4edda; color: #155724;")">
+                        @userMessage
+                    </div>
+                }
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 14px;">Email / Username</label>
+                        <input @bind="newUserEmail" placeholder="americare.org\username" autocomplete="off"
+                               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 14px;">Role</label>
+                        <select @bind="newUserRole" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="@UserRole.Employee">Employee</option>
+                            <option value="@UserRole.Manager">Manager</option>
+                            <option value="@UserRole.Admin">Admin</option>
+                        </select>
+                    </div>
+                    <button @onclick="CreateUser"
+                            style="padding: 8px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; height: 35px;">Create
+                        User</button>
+                    </div>
+                </div>
+
+                @if (users is null)
+                {
+                    <p><em>Loading users...</em></p>
+                }
+                else
+                {
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <thead>
+                            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                <th style="padding: 12px; text-align: left;">Email</th>
+                                <th style="padding: 12px; text-align: left;">Full Name</th>
+                                <th style="padding: 12px; text-align: left;">Role</th>
+                                <th style="padding: 12px; text-align: left;">Created At</th>
+                                <th style="padding: 12px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in users)
+                            {
+                                <tr style="border-bottom: 1px solid #dee2e6;">
+                                    <td style="padding: 12px;">@user.Email</td>
+                                    <td style="padding: 12px;">@(string.IsNullOrWhiteSpace(user.FullName) ? "-" : user.FullName)</td>
+                                    <td style="padding: 12px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; @GetRoleBadgeStyle(user.Role)">
+                                                @user.Role
+                                            </span>
+                                            @if (user.Email != AuthStateService.CurrentUser?.Email)
+                                            {
+                                                <select value="@GetPendingRole(user.Id).ToString()" @onchange="@(e => SetPendingRole(user.Id, e))"
+                                                        style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                                    <option value="Employee">Employee</option>
+                                                    <option value="Manager">Manager</option>
+                                                    <option value="Admin">Admin</option>
+                                                </select>
+                                                <button @onclick="@(() => ApplyUserRole(user.Id))" disabled="@(!CanApplyRole(user.Id))"
+                                                        style="padding: 4px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                    Apply Role
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px;">@user.CreatedAt.ToLocalTime().ToString("g")</td>
+                                    <td style="padding: 12px; text-align: right;">
+                                        @if (user.Email != AuthStateService.CurrentUser?.Email)
+                                        {
+                                            <button @onclick="@(() => DeleteUser(user.Id))"
+                                                    style="padding: 4px 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                                        }
+                                        else
+                                        {
+                                            <span style="color: #6c757d; font-size: 12px; font-style: italic;">(Current User)</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            }
+else if (activeTab == "logs")
+            {
+                <h4 style="margin-top: 20px;">System Logs</h4>
+
+                <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                    <label style="margin-right: 10px; font-weight: bold;">Select Date:</label>
+                    <select value="@selectedLogDate.ToString("yyyy-MM-dd")" @onchange="OnLogDateChanged"
+                            style="padding: 8px, 5px, 10px;">
+                        @foreach (var date in availableLogDates)
+                        {
+                            <option value="@date.ToString("yyyy-MM-dd")">@date.ToShortDateString()</option>
+                        }
+                    </select>
+                    <button @onclick="LoadLogs"
+                            style="margin-left: 10px; padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
+                </div>
+
+                @if (currentLogs is null)
+                {
+                    <p><em>Loading logs...</em></p>
+                }
+                else if (!currentLogs.Any())
+                {
+                    <p><em>No logs found for this date.</em></p>
+                }
+                else
+                {
+                    <div
+                        style="background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; padding: 15px; max-height: 600px; overflow-y: auto; font-family: monospace;">
+                        @foreach (var log in currentLogs)
+                        {
+                            <div style="margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;">@log</div>
+                        }
+                    </div>
+                }
+            }
+
+@code {
+    private string activeTab = "survey";
+    private List<Section>? sections;
+    private List<User>? users;
+    private List<SurveyEntity> surveyEntities = new();
+    private SurveyEntity? activeSurveyEntity;
+    private string surveyEntityMessage = string.Empty;
+    private bool surveyEntityMessageIsError = false;
+
+    // Log management fields
+    private List<string>? currentLogs;
+    private List<DateTime> availableLogDates = new();
+    private DateTime selectedLogDate = DateTime.Today;
+
+    // Survey management fields
+    private string newSectionName = string.Empty;
+    private string newSectionParentId = string.Empty;
+    private Dictionary<int, string> questionTexts = new();
+    private HashSet<int> expandedSections = new();
+    private int? editingSectionId = null;
+    private string editSectionName = string.Empty;
+    private int? editingQuestionId = null;
+    private string editQuestionText = string.Empty;
+    private string clearResponsesMessage = string.Empty;
+    private bool clearResponsesMessageIsError = false;
+
+    // User management fields
+    private string newUserEmail = string.Empty;
+    private UserRole newUserRole = UserRole.Employee;
+    private string userMessage = string.Empty;
+    private bool userMessageIsError = false;
+    private Dictionary<int, UserRole> pendingUserRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await AuthStateService.InitializeAsync();
+            await AuthStateService.RefreshCurrentUserAsync();
+
+            if (!AuthStateService.IsAdmin)
+            {
+                await LogService.LogAsync("Unauthorized admin page access attempt", AuthStateService.CurrentUser?.Email ?? "Unknown");
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            await LoadSections();
+            await LoadSurveyEntities();
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error in Admin OnInitializedAsync: {ex.Message}", "System");
+            Console.WriteLine($"Admin page error: {ex}");
+        }
+    }
+
+    private async Task LoadSections()
+    {
+        try
+        {
+            sections = await SurveyService.GetSectionsAsync();
+            if (sections == null)
+            {
+                sections = new List<Section>();
+            }
+            foreach (var sec in sections)
+            {
+                InitializeQuestionTextsForSection(sec);
+            }
+
+            activeSurveyEntity = await SurveyService.GetActiveSurveyEntityAsync();
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error loading sections: {ex.Message}", "System");
+            sections = new List<Section>();
+        }
+    }
+
+    private async Task LoadSurveyEntities()
+    {
+        surveyEntities = await SurveyService.GetSurveyEntitiesAsync();
+        activeSurveyEntity = surveyEntities.FirstOrDefault(e => e.Status == SurveyEntityStatus.Active);
+    }
+
+    private async Task ArchiveCurrentAndCreateNextYear()
+    {
+        surveyEntityMessage = string.Empty;
+        surveyEntityMessageIsError = false;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+            "Archive the current ACTIVE survey year and create the next year as ACTIVE?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var next = await SurveyService.ArchiveActiveAndCreateNextAsync();
+            await LogActionAsync($"Archived current survey year and created ACTIVE survey year {next.Year}");
+
+            surveyEntityMessage = $"Survey year {next.Year} is now ACTIVE. Previous year was archived.";
+            await LoadSurveyEntities();
+            await LoadSections();
+        }
+        catch (Exception ex)
+        {
+            surveyEntityMessageIsError = true;
+            surveyEntityMessage = $"Unable to archive/create year: {ex.Message}";
+        }
+    }
+
+    private async Task ActivateSurveyEntity(int surveyEntityId)
+    {
+        surveyEntityMessage = string.Empty;
+        surveyEntityMessageIsError = false;
+
+        try
+        {
+            await SurveyService.SetActiveSurveyEntityAsync(surveyEntityId);
+            await LogActionAsync($"Set survey entity {surveyEntityId} as ACTIVE");
+
+            surveyEntityMessage = "Selected survey year is now ACTIVE.";
+            await LoadSurveyEntities();
+            await LoadSections();
+        }
+        catch (Exception ex)
+        {
+            surveyEntityMessageIsError = true;
+            surveyEntityMessage = $"Unable to set ACTIVE year: {ex.Message}";
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            users = await AuthService.GetAllUsersAsync();
+            if (users == null)
+            {
+                users = new List<User>();
+            }
+
+            pendingUserRoles = users.ToDictionary(u => u.Id, u => u.Role);
+        }
+        catch (Exception ex)
+        {
+            await LogService.LogAsync($"Error loading users: {ex.Message}", "System");
+            users = new List<User>();
+            pendingUserRoles.Clear();
+        }
+    }
+
+    private void InitializeQuestionTextsForSection(Section sec)
+    {
+        if (!questionTexts.ContainsKey(sec.Id))
+        {
+            questionTexts[sec.Id] = string.Empty;
+        }
+        foreach (var subsec in sec.Subsections)
+        {
+            InitializeQuestionTextsForSection(subsec);
+        }
+    }
+
+    private void ToggleSection(int sectionId)
+    {
+        if (expandedSections.Contains(sectionId))
+        {
+            expandedSections.Remove(sectionId);
+        }
+        else
+        {
+            expandedSections.Add(sectionId);
+        }
+    }
+
+    private RenderFragment RenderSection(Section sec, int level) => __builder =>
+    {
+        var sectionId = sec.Id;
+        var indent = level * 20;
+        var isExpanded = expandedSections.Contains(sectionId);
+
+        <div style="margin-left: @(indent)px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; cursor: pointer; user-select: none;"
+                 @onclick="@(() => ToggleSection(sectionId))">
+                <h4 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 14px;">@(isExpanded ? "▼" : "▶")</span>
+                    @(level > 0 ? $"↳ {sec.Name}" : sec.Name)
+                </h4>
+            </div>
+
+            @if (isExpanded)
+            {
+                @if (editingSectionId == sectionId)
+                {
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                        <input @bind="editSectionName" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                        <button @onclick="@(() => SaveSectionEdit(sectionId))"
+                                style="padding: 8px 16px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+                        <button @onclick="CancelSectionEdit"
+                                style="padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    </div>
+                }
+                else
+                {
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button @onclick="@(() => StartEditSection(sectionId, sec.Name))"
+                                style="padding: 6px 12px; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">Edit
+                            Section</button>
+                            <button @onclick="@(() => DeleteSection(sectionId))"
+                                    style="padding: 6px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete
+                                Section</button>
+                            </div>
+                        }
+
+                        @if (sec.Questions.Any())
+                        {
+                            <ul style="list-style-type: none; padding-left: 0;">
+                                @foreach (var q in sec.Questions)
+                                {
+                                    var questionId = q.Id;
+                                    <li style="padding: 10px; margin: 5px 0; background-color: white; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                                        @if (editingQuestionId == questionId)
+                                        {
+                                            <input @bind="editQuestionText"
+                                                   style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px;" />
+                                            <button @onclick="@(() => SaveQuestionEdit(questionId))"
+                                                    style="padding: 6px 12px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Save</button>
+                                            <button @onclick="CancelQuestionEdit"
+                                                    style="padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                                        }
+                                        else
+                                        {
+                                            <span style="flex: 1;">@q.Text</span>
+                                            <div style="display: flex; gap: 5px;">
+                                                <button @onclick="@(() => StartEditQuestion(questionId, q.Text))"
+                                                        style="padding: 4px 10px; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Edit</button>
+                                                <button @onclick="@(() => DeleteQuestion(questionId))"
+                                                        style="padding: 4px 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                                            </div>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p><em>No questions yet.</em></p>
+                        }
+
+                        <div style="margin-top: 15px;">
+                            <input @bind="questionTexts[sectionId]" placeholder="Enter new question text"
+                                   style="width: 400px; margin-right: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                            <button @onclick="@(() => HandleAddQuestion(sectionId))"
+                                    style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
+                                Question</button>
+                            </div>
+
+                            @foreach (var subsec in sec.Subsections)
+                            {
+                                @RenderSection(subsec, level + 1)
+                            }
+                        }
+                    </div>
+                }
+                                            ;
+
+    private async Task HandleAddSection()
+    {
+        if (!string.IsNullOrWhiteSpace(newSectionName))
+        {
+            var sec = new Section
+            {
+                Name = newSectionName,
+                ParentSectionId = string.IsNullOrEmpty(newSectionParentId) ? null : int.Parse(newSectionParentId)
+            };
+            await SurveyService.AddSectionAsync(sec);
+
+            await LogActionAsync($"Added new section '{newSectionName}'");
+
+            newSectionName = string.Empty;
+            newSectionParentId = string.Empty;
+            await LoadSections();
+        }
+    }
+
+    private async Task HandleAddQuestion(int sectionId)
+    {
+        if (questionTexts.TryGetValue(sectionId, out var text) && !string.IsNullOrWhiteSpace(text))
+        {
+            var question = new Question { SectionId = sectionId, Text = text };
+            await SurveyService.AddQuestionAsync(question);
+
+            var sectionName = FindSectionName(sectionId);
+            await LogActionAsync($"Added question to section '{sectionName}': '{text}'");
+
+            questionTexts[sectionId] = string.Empty;
+            await LoadSections();
+        }
+    }
+
+    private void StartEditSection(int sectionId, string currentName)
+    {
+        editingSectionId = sectionId;
+        editSectionName = currentName;
+    }
+
+    private async Task SaveSectionEdit(int sectionId)
+    {
+        if (!string.IsNullOrWhiteSpace(editSectionName))
+        {
+            var oldName = FindSectionName(sectionId);
+            await SurveyService.UpdateSectionAsync(sectionId, editSectionName);
+
+            await LogActionAsync($"Renamed section '{oldName}' to '{editSectionName}'");
+
+            editingSectionId = null;
+            editSectionName = string.Empty;
+            await LoadSections();
+        }
+    }
+
+    private void CancelSectionEdit()
+    {
+        editingSectionId = null;
+        editSectionName = string.Empty;
+    }
+
+    private async Task DeleteSection(int sectionId)
+    {
+        var sectionName = FindSectionName(sectionId);
+        await SurveyService.DeleteSectionAsync(sectionId);
+
+        await LogActionAsync($"Deleted section '{sectionName}'");
+
+        await LoadSections();
+    }
+
+    private void StartEditQuestion(int questionId, string currentText)
+    {
+        editingQuestionId = questionId;
+        editQuestionText = currentText;
+    }
+
+    private async Task SaveQuestionEdit(int questionId)
+    {
+        if (!string.IsNullOrWhiteSpace(editQuestionText))
+        {
+            await SurveyService.UpdateQuestionAsync(questionId, editQuestionText);
+
+            await LogActionAsync($"Updated question text to '{editQuestionText}'");
+
+            editingQuestionId = null;
+            editQuestionText = string.Empty;
+            await LoadSections();
+        }
+    }
+
+    private void CancelQuestionEdit()
+    {
+        editingQuestionId = null;
+        editQuestionText = string.Empty;
+    }
+
+    private async Task DeleteQuestion(int questionId)
+    {
+        // Find question text before deleting (requires search)
+        var questionText = FindQuestionText(questionId);
+        await SurveyService.DeleteQuestionAsync(questionId);
+
+        await LogActionAsync($"Deleted question '{questionText}'");
+
+        await LoadSections();
+    }
+
+    private async Task ClearAllResponses()
+    {
+        clearResponsesMessage = string.Empty;
+        clearResponsesMessageIsError = false;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+            "This will create a database backup and permanently delete all survey responses. Continue?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var backupPath = await SurveyService.ClearAllResponsesWithBackupAsync();
+
+            await LogActionAsync($"Cleared ALL survey responses after backup: '{backupPath}'");
+
+            clearResponsesMessage = $"✓ Database was backed up to '{backupPath}' and all responses were cleared.";
+            await Task.Delay(5000);
+            clearResponsesMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            clearResponsesMessageIsError = true;
+            clearResponsesMessage = $"Unable to clear responses: {ex.Message}";
+        }
+    }
+
+    // User Management Methods
+    private async Task CreateUser()
+    {
+        userMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(newUserEmail))
+        {
+            userMessage = "Email/Username is required.";
+            userMessageIsError = true;
+            return;
+        }
+
+        var result = await AuthService.CreateUserAsync(newUserEmail, newUserRole);
+
+        if (result != null)
+        {
+            await LogActionAsync($"Created user '{newUserEmail}' with role '{newUserRole}'");
+
+            userMessage = "User created successfully!";
+            userMessageIsError = false;
+            newUserEmail = string.Empty;
+            newUserRole = UserRole.Employee;
+            await LoadUsers();
+        }
+        else
+        {
+            userMessage = "Failed to create user. Email may already exist.";
+            userMessageIsError = true;
+        }
+    }
+
+    private async Task DeleteUser(int userId)
+    {
+        var userToDelete = users?.FirstOrDefault(u => u.Id == userId);
+        var userEmail = userToDelete?.Email ?? "Unknown";
+
+        if (await AuthService.DeleteUserAsync(userId))
+        {
+            await LogActionAsync($"Deleted user '{userEmail}'");
+            await LoadUsers();
+        }
+    }
+
+    private UserRole GetPendingRole(int userId)
+    {
+        if (pendingUserRoles.TryGetValue(userId, out var role))
+        {
+            return role;
+        }
+
+        var user = users?.FirstOrDefault(u => u.Id == userId);
+        return user?.Role ?? UserRole.Employee;
+    }
+
+    private void SetPendingRole(int userId, ChangeEventArgs e)
+    {
+        if (e.Value is null)
+        {
+            return;
+        }
+
+        if (!Enum.TryParse<UserRole>(e.Value.ToString(), out var parsedRole))
+        {
+            return;
+        }
+
+        pendingUserRoles[userId] = parsedRole;
+    }
+
+    private async Task ApplyUserRole(int userId)
+    {
+        var targetUser = users?.FirstOrDefault(u => u.Id == userId);
+        if (targetUser == null)
+        {
+            return;
+        }
+
+        if (!pendingUserRoles.TryGetValue(userId, out var parsedRole))
+        {
+            return;
+        }
+
+        var oldRole = targetUser.Role;
+        if (oldRole == parsedRole)
+        {
+            userMessage = "No role change to apply.";
+            userMessageIsError = false;
+            return;
+        }
+
+        var updated = await AuthService.UpdateUserRoleAsync(userId, parsedRole);
+        if (updated)
+        {
+            await LogActionAsync($"Updated user '{targetUser.Email}' role from '{oldRole}' to '{parsedRole}'");
+            userMessage = $"Updated role for '{targetUser.Email}' to {parsedRole}.";
+            userMessageIsError = false;
+            await LoadUsers();
+        }
+        else
+        {
+            userMessage = "Failed to update role.";
+            userMessageIsError = true;
+        }
+    }
+
+    private bool CanApplyRole(int userId)
+    {
+        var targetUser = users?.FirstOrDefault(u => u.Id == userId);
+        if (targetUser == null)
+        {
+            return false;
+        }
+
+        if (!pendingUserRoles.TryGetValue(userId, out var pendingRole))
+        {
+            pendingRole = targetUser.Role;
+        }
+
+        return targetUser.Role != pendingRole;
+    }
+
+    private string GetRoleBadgeStyle(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "background-color: #dc3545; color: white;",
+            UserRole.Manager => "background-color: #ffc107; color: black;",
+            UserRole.Employee => "background-color: #28a745; color: white;",
+            _ => "background-color: #6c757d; color: white;"
+        };
+    }
+
+    private async Task LogActionAsync(string action)
+    {
+        var email = AuthStateService.CurrentUser?.Email ?? "Unknown";
+        await LogService.LogAsync(action, email);
+    }
+
+    private async Task LoadLogs()
+    {
+        activeTab = "logs";
+        availableLogDates = LogService.GetAvailableLogDates();
+        if (!availableLogDates.Contains(DateTime.Today))
+        {
+            availableLogDates.Insert(0, DateTime.Today);
+        }
+
+        // Ensure selected date is in the list or default to first
+        if (!availableLogDates.Any(d => d.Date == selectedLogDate.Date))
+        {
+            selectedLogDate = availableLogDates.FirstOrDefault();
+        }
+
+        currentLogs = await LogService.GetLogsAsync(selectedLogDate);
+    }
+
+    private async Task OnLogDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+        {
+            selectedLogDate = date;
+            currentLogs = await LogService.GetLogsAsync(selectedLogDate);
+        }
+    }
+
+    private string FindSectionName(int sectionId)
+    {
+        if (sections == null) return "Unknown";
+
+        // Recursive search
+        string Search(List<Section> list)
+        {
+            foreach (var s in list)
+            {
+                if (s.Id == sectionId) return s.Name;
+                var found = Search(s.Subsections);
+                if (found != "Unknown") return found;
+            }
+            return "Unknown";
+        }
+
+        return Search(sections);
+    }
+
+    private string FindQuestionText(int questionId)
+    {
+        if (sections == null) return "Unknown";
+
+        string Search(List<Section> list)
+        {
+            foreach (var s in list)
+            {
+                var q = s.Questions.FirstOrDefault(q => q.Id == questionId);
+                if (q != null) return q.Text;
+
+                var found = Search(s.Subsections);
+                if (found != "Unknown") return found;
+            }
+            return "Unknown";
+        }
+
+        return Search(sections);
+    }
+}
