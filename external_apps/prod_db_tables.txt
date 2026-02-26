@@ -1,0 +1,11 @@
+FlourishWellness DB Server:
+
+asisqldbprod
+	Databases
+		FlourisWellness
+			[TABLES]
+				dbo.Questions
+				dbo.Responses
+				dbo.Sections
+				dbo.Users
+				
