@@ -4,8 +4,8 @@ asisqldbprod
 	Databases
 		FlourisWellness
 			[TABLES]
-				dbo.Questions
 				dbo.Responses
 				dbo.Sections
-				dbo.Users
+				dbo.Users				dbo.Questions
+
 				
