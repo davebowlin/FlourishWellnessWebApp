@@ -373,3 +373,7 @@ FodyWeavers.xsd
 publish/
 !/FlourishWellness/publish/
 !/FlourishWellness/publish/**
+app.db
+app.db-shm
+app.db-wal
+app.db

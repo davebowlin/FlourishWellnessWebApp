@@ -8,6 +8,13 @@ using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(defaultConnection))
+{
+    throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' is missing or empty. Set it in appsettings.json or appsettings.Development.json before starting the app.");
+}
+
 // 1. Add Razor Components
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -27,7 +34,7 @@ builder.Services.AddScoped<ADUserService>();
 
 // Database context factory
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(defaultConnection));
 
 builder.Services.AddScoped<AuthStateService>();
 builder.Services.AddScoped<SurveyService>();
@@ -51,48 +58,78 @@ using (var scope = app.Services.CreateScope())
 
     if (!HasColumn(connection, "Users", "FullName"))
     {
-        context.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN FullName TEXT NOT NULL DEFAULT '';");
+        context.Database.ExecuteSqlRaw("ALTER TABLE [Users] ADD [FullName] NVARCHAR(256) NOT NULL CONSTRAINT [DF_Users_FullName] DEFAULT '';");
     }
 
     if (!HasColumn(connection, "Sections", "SurveyEntityId"))
     {
-        context.Database.ExecuteSqlRaw("ALTER TABLE Sections ADD COLUMN SurveyEntityId INTEGER NOT NULL DEFAULT 0;");
+        context.Database.ExecuteSqlRaw("ALTER TABLE [Sections] ADD [SurveyEntityId] INT NOT NULL CONSTRAINT [DF_Sections_SurveyEntityId] DEFAULT 0;");
     }
 
     if (!HasColumn(connection, "Questions", "SurveyEntityId"))
     {
-        context.Database.ExecuteSqlRaw("ALTER TABLE Questions ADD COLUMN SurveyEntityId INTEGER NOT NULL DEFAULT 0;");
+        context.Database.ExecuteSqlRaw("ALTER TABLE [Questions] ADD [SurveyEntityId] INT NOT NULL CONSTRAINT [DF_Questions_SurveyEntityId] DEFAULT 0;");
     }
 
     if (!HasColumn(connection, "Responses", "SurveyEntityId"))
     {
-        context.Database.ExecuteSqlRaw("ALTER TABLE Responses ADD COLUMN SurveyEntityId INTEGER NOT NULL DEFAULT 0;");
+        context.Database.ExecuteSqlRaw("ALTER TABLE [Responses] ADD [SurveyEntityId] INT NOT NULL CONSTRAINT [DF_Responses_SurveyEntityId] DEFAULT 0;");
     }
 
     context.Database.ExecuteSqlRaw(@"
-CREATE TABLE IF NOT EXISTS SurveyEntities (
-    Id INTEGER NOT NULL CONSTRAINT PK_SurveyEntities PRIMARY KEY AUTOINCREMENT,
-    Year INTEGER NOT NULL,
-    Status INTEGER NOT NULL,
-    CreatedAt TEXT NOT NULL
-);");
+IF OBJECT_ID(N'dbo.SurveyEntities', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SurveyEntities] (
+        [Id] INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_SurveyEntities] PRIMARY KEY,
+        [Year] INT NOT NULL,
+        [Status] INT NOT NULL,
+        [CreatedAt] DATETIME2 NOT NULL
+    );
+END;");
 
     context.Database.ExecuteSqlRaw(@"
-CREATE TABLE IF NOT EXISTS UserSurveyStatuses (
-    Id INTEGER NOT NULL CONSTRAINT PK_UserSurveyStatuses PRIMARY KEY AUTOINCREMENT,
-    UserId INTEGER NOT NULL,
-    SurveyEntityId INTEGER NOT NULL,
-    IsCompleted INTEGER NOT NULL,
-    UpdatedAt TEXT NOT NULL,
-    CONSTRAINT FK_UserSurveyStatuses_Users_UserId FOREIGN KEY(UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-    CONSTRAINT FK_UserSurveyStatuses_SurveyEntities_SurveyEntityId FOREIGN KEY(SurveyEntityId) REFERENCES SurveyEntities(Id) ON DELETE CASCADE
-);");
+IF OBJECT_ID(N'dbo.UserSurveyStatuses', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[UserSurveyStatuses] (
+        [Id] INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_UserSurveyStatuses] PRIMARY KEY,
+        [UserId] INT NOT NULL,
+        [SurveyEntityId] INT NOT NULL,
+        [IsCompleted] BIT NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_UserSurveyStatuses_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_UserSurveyStatuses_SurveyEntities_SurveyEntityId] FOREIGN KEY ([SurveyEntityId]) REFERENCES [dbo].[SurveyEntities]([Id]) ON DELETE CASCADE
+    );
+END;");
 
-    context.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_SurveyEntities_Year ON SurveyEntities (Year);");
-    context.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_UserSurveyStatuses_UserId_SurveyEntityId ON UserSurveyStatuses (UserId, SurveyEntityId);");
-    context.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Sections_SurveyEntityId ON Sections (SurveyEntityId);");
-    context.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Questions_SurveyEntityId ON Questions (SurveyEntityId);");
-    context.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Responses_SurveyEntityId ON Responses (SurveyEntityId);");
+    context.Database.ExecuteSqlRaw(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SurveyEntities_Year' AND object_id = OBJECT_ID(N'dbo.SurveyEntities'))
+BEGIN
+    CREATE UNIQUE INDEX [IX_SurveyEntities_Year] ON [dbo].[SurveyEntities]([Year]);
+END;");
+
+    context.Database.ExecuteSqlRaw(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_UserSurveyStatuses_UserId_SurveyEntityId' AND object_id = OBJECT_ID(N'dbo.UserSurveyStatuses'))
+BEGIN
+    CREATE UNIQUE INDEX [IX_UserSurveyStatuses_UserId_SurveyEntityId] ON [dbo].[UserSurveyStatuses]([UserId], [SurveyEntityId]);
+END;");
+
+    context.Database.ExecuteSqlRaw(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Sections_SurveyEntityId' AND object_id = OBJECT_ID(N'dbo.Sections'))
+BEGIN
+    CREATE INDEX [IX_Sections_SurveyEntityId] ON [dbo].[Sections]([SurveyEntityId]);
+END;");
+
+    context.Database.ExecuteSqlRaw(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Questions_SurveyEntityId' AND object_id = OBJECT_ID(N'dbo.Questions'))
+BEGIN
+    CREATE INDEX [IX_Questions_SurveyEntityId] ON [dbo].[Questions]([SurveyEntityId]);
+END;");
+
+    context.Database.ExecuteSqlRaw(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Responses_SurveyEntityId' AND object_id = OBJECT_ID(N'dbo.Responses'))
+BEGIN
+    CREATE INDEX [IX_Responses_SurveyEntityId] ON [dbo].[Responses]([SurveyEntityId]);
+END;");
 
     var activeEntity = context.SurveyEntities.FirstOrDefault(e => e.Status == SurveyEntityStatus.Active);
     if (activeEntity == null)
@@ -231,17 +268,21 @@ app.Run();
 static bool HasColumn(System.Data.Common.DbConnection connection, string tableName, string columnName)
 {
     using var command = connection.CreateCommand();
-    command.CommandText = $"PRAGMA table_info('{tableName}')";
-    using var reader = command.ExecuteReader();
+    command.CommandText = @"
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @tableName AND COLUMN_NAME = @columnName;";
 
-    while (reader.Read())
-    {
-        var existingColumn = reader["name"]?.ToString();
-        if (string.Equals(existingColumn, columnName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-    }
+    var tableNameParameter = command.CreateParameter();
+    tableNameParameter.ParameterName = "@tableName";
+    tableNameParameter.Value = tableName;
+    command.Parameters.Add(tableNameParameter);
 
-    return false;
+    var columnNameParameter = command.CreateParameter();
+    columnNameParameter.ParameterName = "@columnName";
+    columnNameParameter.Value = columnName;
+    command.Parameters.Add(columnNameParameter);
+
+    var result = command.ExecuteScalar();
+    return result != null && Convert.ToInt32(result) > 0;
 }
