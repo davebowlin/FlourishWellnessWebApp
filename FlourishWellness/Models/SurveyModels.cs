@@ -66,6 +66,8 @@
         public int Id { get; set; }
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+        public string SAMAccountName { get; set; } = string.Empty;
+        public string ExtensionAttribute10 { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
         public bool IsSurveyCompleted { get; set; } = false;

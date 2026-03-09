@@ -55,6 +55,8 @@ namespace FlourishWellness.Services
 
                 var fullName = _adUserService.GetFullName(principal) ?? adName;
                 var email = $"americare.org\\{adName}"; // Format: americare.org\username
+                var samAccountName = _adUserService.GetSamAccountName(principal) ?? adName;
+                var extensionAttribute10 = _adUserService.GetExtensionAttribute10(principal, samAccountName);
 
                 using var context = await _factory.CreateDbContextAsync();
                 var user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
@@ -66,6 +68,8 @@ namespace FlourishWellness.Services
                     {
                         Email = email,
                         FullName = fullName,
+                        SAMAccountName = samAccountName,
+                        ExtensionAttribute10 = extensionAttribute10 ?? string.Empty,
                         PasswordHash = string.Empty, // Not used for AD
                         Role = Models.UserRole.Employee,
                         CreatedAt = DateTime.UtcNow
@@ -75,6 +79,11 @@ namespace FlourishWellness.Services
                 else
                 {
                     user.FullName = fullName;
+                    user.SAMAccountName = samAccountName;
+                    if (!string.IsNullOrWhiteSpace(extensionAttribute10))
+                    {
+                        user.ExtensionAttribute10 = extensionAttribute10;
+                    }
                 }
 
                 await context.SaveChangesAsync();
@@ -104,6 +113,8 @@ namespace FlourishWellness.Services
             {
                 Email = email,
                 FullName = email,
+                SAMAccountName = email.Contains('\\') ? email.Split('\\')[1] : email,
+                ExtensionAttribute10 = string.Empty,
                 PasswordHash = string.Empty, // No password for AD users
                 Role = role,
                 CreatedAt = DateTime.UtcNow
@@ -172,6 +183,8 @@ namespace FlourishWellness.Services
                 {
                     Email = "admin",
                     FullName = "Administrator",
+                    SAMAccountName = "admin",
+                    ExtensionAttribute10 = string.Empty,
                     PasswordHash = "admin",
                     Role = UserRole.Admin,
                     CreatedAt = DateTime.UtcNow
@@ -188,6 +201,14 @@ namespace FlourishWellness.Services
                 if (string.IsNullOrWhiteSpace(user.PasswordHash))
                 {
                     user.PasswordHash = "admin";
+                }
+                if (string.IsNullOrWhiteSpace(user.SAMAccountName))
+                {
+                    user.SAMAccountName = "admin";
+                }
+                if (string.IsNullOrWhiteSpace(user.ExtensionAttribute10))
+                {
+                    user.ExtensionAttribute10 = string.Empty;
                 }
             }
 

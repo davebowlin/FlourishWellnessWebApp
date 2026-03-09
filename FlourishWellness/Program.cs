@@ -61,6 +61,16 @@ using (var scope = app.Services.CreateScope())
         context.Database.ExecuteSqlRaw("ALTER TABLE [Users] ADD [FullName] NVARCHAR(256) NOT NULL CONSTRAINT [DF_Users_FullName] DEFAULT '';");
     }
 
+    if (!HasColumn(connection, "Users", "SAMAccountName"))
+    {
+        context.Database.ExecuteSqlRaw("ALTER TABLE [Users] ADD [SAMAccountName] NVARCHAR(256) NOT NULL CONSTRAINT [DF_Users_SAMAccountName] DEFAULT '';");
+    }
+
+    if (!HasColumn(connection, "Users", "ExtensionAttribute10"))
+    {
+        context.Database.ExecuteSqlRaw("ALTER TABLE [Users] ADD [ExtensionAttribute10] NVARCHAR(256) NOT NULL CONSTRAINT [DF_Users_ExtensionAttribute10] DEFAULT '';");
+    }
+
     if (!HasColumn(connection, "Sections", "SurveyEntityId"))
     {
         context.Database.ExecuteSqlRaw("ALTER TABLE [Sections] ADD [SurveyEntityId] INT NOT NULL CONSTRAINT [DF_Sections_SurveyEntityId] DEFAULT 0;");
@@ -221,6 +231,8 @@ WHERE SurveyEntityId = 0;");
         {
             Email = "admin",
             FullName = "Administrator",
+            SAMAccountName = "admin",
+            ExtensionAttribute10 = string.Empty,
             PasswordHash = "admin",
             Role = UserRole.Admin,
             CreatedAt = DateTime.UtcNow
@@ -237,6 +249,14 @@ WHERE SurveyEntityId = 0;");
         if (string.IsNullOrWhiteSpace(adminUser.PasswordHash))
         {
             adminUser.PasswordHash = "admin";
+        }
+        if (string.IsNullOrWhiteSpace(adminUser.SAMAccountName))
+        {
+            adminUser.SAMAccountName = "admin";
+        }
+        if (string.IsNullOrWhiteSpace(adminUser.ExtensionAttribute10))
+        {
+            adminUser.ExtensionAttribute10 = string.Empty;
         }
         context.SaveChanges();
     }

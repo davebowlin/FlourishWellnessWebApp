@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS "Users" (
 	"Id" INTEGER NOT NULL,
 	"Email" TEXT NOT NULL,
 	"FullName" TEXT NOT NULL,
+	"SAMAccountName" TEXT NOT NULL,
+	"ExtensionAttribute10" TEXT NOT NULL,
 	"PasswordHash" TEXT NOT NULL,
 	"Role" INTEGER NOT NULL,
 	"IsSurveyCompleted" INTEGER NOT NULL DEFAULT 0,
