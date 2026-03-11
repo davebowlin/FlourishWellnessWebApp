@@ -5,6 +5,8 @@ import sqlite3
 import csv
 import os
 import importlib
+import json
+from pathlib import Path
 
 
 def table_exists(cur, db_type, table_name):
@@ -411,9 +413,42 @@ db_frame.pack(pady=10)
 db_type_var = tk.StringVar(value="sqlserver")
 db_path_var = tk.StringVar()
 db_path_var.set("")
-sql_conn_var = tk.StringVar(
-    value="Driver={ODBC Driver 17 for SQL Server};Server=ASISQLDBPROD;Database=FlourishWellness;Trusted_Connection=yes;TrustServerCertificate=yes;"
-)
+
+
+def find_appsettings_connection_string():
+    """Search for appsettings.Development.json then appsettings.json under the FlourishWellness project folder
+    (one level up). Return ConnectionStrings.DefaultConnection if found, otherwise None."""
+    # Common locations relative to this script
+    candidates = [
+        Path(__file__).resolve().parents[1] / "FlourishWellness" / "appsettings.Development.json",
+        Path(__file__).resolve().parents[1] / "FlourishWellness" / "appsettings.json",
+        Path(__file__).resolve().parents[2] / "FlourishWellness" / "appsettings.Development.json",
+        Path(__file__).resolve().parents[2] / "FlourishWellness" / "appsettings.json",
+    ]
+
+    merged = {}
+    for p in candidates:
+        if p.exists():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                # Merge shallowly: later files overwrite earlier keys
+                merged.update(data)
+            except Exception:
+                continue
+
+    # ConnectionStrings may be present
+    cs = merged.get("ConnectionStrings") or {}
+    default = cs.get("DefaultConnection") if isinstance(cs, dict) else None
+    return default
+
+
+default_conn = find_appsettings_connection_string()
+if default_conn:
+    sql_conn_var = tk.StringVar(value=default_conn)
+else:
+    sql_conn_var = tk.StringVar(
+        value="Driver={ODBC Driver 17 for SQL Server};Server=ASISQLDBPROD;Database=FlourishWellness;Trusted_Connection=yes;TrustServerCertificate=yes;MultipleActiveResultSets=yes;"
+    )
 
 db_type_frame = tk.Frame(root)
 db_type_frame.pack(pady=5)

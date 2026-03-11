@@ -302,29 +302,45 @@ namespace FlourishWellness.Services
                 await connection.OpenAsync();
             }
 
-            var databaseFilePath = await GetMainDatabaseFilePathAsync(connection);
-            if (string.IsNullOrWhiteSpace(databaseFilePath))
-            {
-                throw new InvalidOperationException("Could not resolve database file path for backup.");
-            }
-
-            if (!File.Exists(databaseFilePath))
-            {
-                throw new FileNotFoundException("Database file was not found for backup.", databaseFilePath);
-            }
-
-            var backupDirectory = Path.Combine(Path.GetDirectoryName(databaseFilePath)!, "backups");
+            // Prepare backup directory under app base
+            var backupDirectory = Path.Combine(AppContext.BaseDirectory, "backups");
             Directory.CreateDirectory(backupDirectory);
 
-            var backupFileName = $"{Path.GetFileNameWithoutExtension(databaseFilePath)}-backup-{DateTime.Now:yyyyMMdd-HHmmss}.db";
-            var backupFilePath = Path.Combine(backupDirectory, backupFileName);
-            File.Copy(databaseFilePath, backupFilePath, overwrite: true);
+            string backupFilePath;
 
+            // If using SQL Server, perform a BACKUP DATABASE to a .bak file
+            var connTypeName = connection.GetType().Name ?? string.Empty;
+            if (connTypeName.IndexOf("SqlConnection", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                var dbName = connection.Database;
+                var backupFileName = $"{dbName}-backup-{DateTime.Now:yyyyMMdd-HHmmss}.bak";
+                backupFilePath = Path.Combine(backupDirectory, backupFileName);
+
+                await using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"BACKUP DATABASE [{dbName}] TO DISK = N'{backupFilePath}' WITH INIT;";
+                cmd.CommandType = CommandType.Text;
+                // Execute backup command on the server; may require SQL Server account permissions
+                await cmd.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                // Fallback: export responses for the active survey entity to a JSON file
+                var responses = await context.Responses
+                    .Where(r => r.SurveyEntityId == activeEntity.Id)
+                    .ToListAsync();
+
+                var backupFileName = $"responses-backup-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+                backupFilePath = Path.Combine(backupDirectory, backupFileName);
+                await File.WriteAllTextAsync(backupFilePath, System.Text.Json.JsonSerializer.Serialize(responses));
+            }
+
+            // Delete responses for the active survey entity
             var allResponses = await context.Responses
                 .Where(r => r.SurveyEntityId == activeEntity.Id)
                 .ToListAsync();
             context.Responses.RemoveRange(allResponses);
 
+            // Reset user survey statuses for the active survey entity
             var statusRows = await context.UserSurveyStatuses
                 .Where(s => s.SurveyEntityId == activeEntity.Id)
                 .ToListAsync();
@@ -452,28 +468,6 @@ namespace FlourishWellness.Services
             await CloneLevelAsync(null, null);
         }
 
-        private static async Task<string?> GetMainDatabaseFilePathAsync(System.Data.Common.DbConnection connection)
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA database_list;";
-
-            await using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var databaseName = reader[1]?.ToString();
-                if (!string.Equals(databaseName, "main", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var filePath = reader[2]?.ToString();
-                if (!string.IsNullOrWhiteSpace(filePath))
-                {
-                    return filePath;
-                }
-            }
-
-            return null;
-        }
+        
     }
 }

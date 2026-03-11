@@ -23,7 +23,7 @@ DB_CONN_STR = (
 
 COMPLETE_USER_COUNT = 25
 MAX_INCOMPLETE_USER_COUNT = 10
-ANSWER_CHOICES = ["Yes", "No", "Maybe"]
+ANSWER_CHOICES = ["Fully Implemented", "Partially Implemented", "Not a Current Practice"]
 
 
 def get_ad_users_via_powershell():
