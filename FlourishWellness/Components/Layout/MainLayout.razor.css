@@ -23,11 +23,11 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Montserrat", Verdana, "Segoe UI", Tahoma, Geneva, sans-serif;
 }
 
 .navbar {
-    background-color: #007bff;
+    background-color: var(--fw-primary);
     padding: 0.5rem 1rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     color: white;
@@ -113,7 +113,7 @@
 
     .nav-link:hover {
         background-color: white;
-        color: #007bff;
+        color: var(--fw-primary);
         border-color: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
@@ -144,7 +144,7 @@
     }
 
 .btn-nav-login {
-    color: #007bff;
+    color: var(--fw-primary);
     background-color: white;
     border: 1px solid white;
     padding: 0.5rem 1.25rem;
@@ -156,8 +156,8 @@
 }
 
     .btn-nav-login:hover {
-        background-color: #f8f9fa;
-        color: #0056b3;
+        background-color: var(--fw-surface);
+        color: var(--fw-primary);
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
@@ -171,11 +171,11 @@ main {
 }
 
 footer {
-    background-color: #f8f9fa;
+    background-color: var(--fw-surface);
     padding: 1.5rem;
     text-align: center;
-    border-top: 1px solid #dee2e6;
-    color: #6c757d;
+    border-top: 1px solid var(--fw-border);
+    color: var(--fw-text);
 }
 
     footer p {

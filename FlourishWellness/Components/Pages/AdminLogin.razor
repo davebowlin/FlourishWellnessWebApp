@@ -14,10 +14,10 @@
 
 <div style="display: flex; justify-content: center;">
     <div
-        style="width: 100%; max-width: 420px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+        style="width: 100%; max-width: 420px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
         @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            <div style="margin-bottom: 15px; padding: 10px; border-radius: 4px; background-color: #f8d7da; color: #721c24;">
+            <div style="margin-bottom: 15px; padding: 10px; border-radius: 4px; background-color: #fffaec; color: #5f6062;">
                 @errorMessage
             </div>
         }
@@ -25,17 +25,17 @@
         <div style="margin-bottom: 12px;">
             <label style="display: block; margin-bottom: 6px;">Username</label>
             <input @bind="username" autocomplete="off"
-                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                   style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
         </div>
 
         <div style="margin-bottom: 18px;">
             <label style="display: block; margin-bottom: 6px;">Password</label>
             <input @bind="password" type="password" autocomplete="off"
-                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                   style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
         </div>
 
         <button @onclick="LoginAsync"
-                style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                style="padding: 10px 20px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer;">
             Login as Admin
         </button>
     </div>

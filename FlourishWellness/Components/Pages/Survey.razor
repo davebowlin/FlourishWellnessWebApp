@@ -25,7 +25,7 @@ else
 {
     @if (submitted)
     {
-        <div style="padding: 20px; margin-bottom: 20px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; color: #155724;">
+        <div style="padding: 20px; margin-bottom: 20px; background-color: #d8e2b4; border: 1px solid #9fb456; border-radius: 5px; color: #387c2b;">
             <h4>Survey previously submitted</h4>
             <p>Your saved responses are loaded below. You can continue editing and re-submit.</p>
         </div>
@@ -33,7 +33,7 @@ else
 
     @if (!string.IsNullOrEmpty(saveMessage))
     {
-        <div style="position: fixed; top: 20px; right: 20px; padding: 15px; background-color: #d4edda; color: #155724; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000;">
+        <div style="position: fixed; top: 20px; right: 20px; padding: 15px; background-color: #d8e2b4; color: #387c2b; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000;">
             @saveMessage
         </div>
     }
@@ -45,13 +45,13 @@ else
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div style="padding: 10px; margin: 10px 0; background-color: #f8d7da; color: #721c24; border-radius: 4px;">
+        <div style="padding: 10px; margin: 10px 0; background-color: #fffaec; color: #5f6062; border-radius: 4px;">
             @errorMessage
         </div>
     }
 
     <button @onclick="SubmitSurvey"
-            style="padding: 12px 40px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 20px 0; font-weight: 500;">
+            style="padding: 12px 40px; background-color: #196887; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 20px 0; font-weight: 500;">
         Submit Survey
     </button>
 }
@@ -143,10 +143,10 @@ else
         var marginLeft = level * 20;
 
         builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;");
+        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;");
 
         builder.OpenElement(2, "h4");
-        builder.AddAttribute(3, "style", "margin-top: 0; margin-bottom: 20px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;");
+        builder.AddAttribute(3, "style", "margin-top: 0; margin-bottom: 20px; color: #5f6062; border-bottom: 2px solid #196887; padding-bottom: 10px;");
         builder.AddContent(4, level > 0 ? $"? {sec.Name}" : sec.Name);
         builder.CloseElement();
 
@@ -157,25 +157,25 @@ else
 
             builder.OpenElement(7, "thead");
             builder.OpenElement(8, "tr");
-            builder.AddAttribute(9, "style", "background-color: #007bff; color: white;");
+            builder.AddAttribute(9, "style", "background-color: #196887; color: white;");
 
             builder.OpenElement(10, "th");
-            builder.AddAttribute(11, "style", "padding: 12px; text-align: left; border: 1px solid #ddd; width: 50%;");
+            builder.AddAttribute(11, "style", "padding: 12px; text-align: left; border: 1px solid #d1d3d5; width: 50%;");
             builder.AddContent(12, "Question");
             builder.CloseElement();
 
             builder.OpenElement(13, "th");
-            builder.AddAttribute(14, "style", "padding: 12px; text-align: center; border: 1px solid #ddd; width: 16.66%;");
+            builder.AddAttribute(14, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
             builder.AddContent(15, "Fully Implemented");
             builder.CloseElement();
 
             builder.OpenElement(16, "th");
-            builder.AddAttribute(17, "style", "padding: 12px; text-align: center; border: 1px solid #ddd; width: 16.66%;");
+            builder.AddAttribute(17, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
             builder.AddContent(18, "Partially Implemented");
             builder.CloseElement();
 
             builder.OpenElement(19, "th");
-            builder.AddAttribute(20, "style", "padding: 12px; text-align: center; border: 1px solid #ddd; width: 16.66%;");
+            builder.AddAttribute(20, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
             builder.AddContent(21, "Not a Current Practice");
             builder.CloseElement();
 
@@ -188,18 +188,18 @@ else
             {
                 var questionId = question.Id;
                 builder.OpenElement(23, "tr");
-                builder.AddAttribute(24, "style", "border-bottom: 1px solid #ddd;");
+                builder.AddAttribute(24, "style", "border-bottom: 1px solid #d1d3d5;");
 
                 builder.OpenElement(25, "td");
-                builder.AddAttribute(26, "style", "padding: 12px; border: 1px solid #ddd; vertical-align: middle;");
+                builder.AddAttribute(26, "style", "padding: 12px; border: 1px solid #d1d3d5; vertical-align: middle;");
                 builder.OpenElement(27, "span");
-                builder.AddAttribute(28, "style", "font-weight: 500; color: #333;");
+                builder.AddAttribute(28, "style", "font-weight: 500; color: #5f6062;");
                 builder.AddContent(29, question.Text);
                 builder.CloseElement();
                 builder.CloseElement();
 
                 builder.OpenElement(30, "td");
-                builder.AddAttribute(31, "style", "padding: 12px; border: 1px solid #ddd; text-align: center; vertical-align: middle;");
+                builder.AddAttribute(31, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
                 builder.OpenElement(32, "input");
                 builder.AddAttribute(33, "type", "radio");
                 builder.AddAttribute(34, "name", $"question_{questionId}");
@@ -211,7 +211,7 @@ else
                 builder.CloseElement();
 
                 builder.OpenElement(39, "td");
-                builder.AddAttribute(40, "style", "padding: 12px; border: 1px solid #ddd; text-align: center; vertical-align: middle;");
+                builder.AddAttribute(40, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
                 builder.OpenElement(41, "input");
                 builder.AddAttribute(42, "type", "radio");
                 builder.AddAttribute(43, "name", $"question_{questionId}");
@@ -223,7 +223,7 @@ else
                 builder.CloseElement();
 
                 builder.OpenElement(48, "td");
-                builder.AddAttribute(49, "style", "padding: 12px; border: 1px solid #ddd; text-align: center; vertical-align: middle;");
+                builder.AddAttribute(49, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
                 builder.OpenElement(50, "input");
                 builder.AddAttribute(51, "type", "radio");
                 builder.AddAttribute(52, "name", $"question_{questionId}");
@@ -253,7 +253,7 @@ else
         builder.AddAttribute(59, "style", "margin-top: 15px; text-align: right;");
         builder.OpenElement(60, "button");
         builder.AddAttribute(61, "onclick", EventCallback.Factory.Create(this, SaveProgress));
-        builder.AddAttribute(62, "style", "padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;");
+        builder.AddAttribute(62, "style", "padding: 8px 16px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;");
         builder.AddContent(63, "Save Progress");
         builder.CloseElement();
         builder.CloseElement();

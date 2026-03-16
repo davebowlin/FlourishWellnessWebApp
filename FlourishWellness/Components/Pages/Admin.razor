@@ -1,4 +1,4 @@
-﻿@using FlourishWellness.Models
+@using FlourishWellness.Models
 @using FlourishWellness.Services
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
@@ -17,15 +17,15 @@
 
 <div style="margin-bottom: 20px;">
     <button @onclick="@(() => activeTab = "survey")"
-            style="@(activeTab == "survey" ? "background-color: #007bff; color: white;" : "background-color: #f8f9fa; color: #333;") padding: 10px 20px; border: 1px solid #ddd; border-radius: 4px 0 0 4px; cursor: pointer;">
+            style="@(activeTab == "survey" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-radius: 4px 0 0 4px; cursor: pointer;">
         Manage Survey
     </button>
     <button @onclick="@(() => activeTab = "users")"
-            style="@(activeTab == "users" ? "background-color: #007bff; color: white;" : "background-color: #f8f9fa; color: #333;") padding: 10px 20px; border: 1px solid #ddd; border-left: none; border-right: none; cursor: pointer;">
+            style="@(activeTab == "users" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-left: none; border-right: none; cursor: pointer;">
         Manage Users
     </button>
     <button @onclick="@(() => LoadLogs())"
-            style="@(activeTab == "logs" ? "background-color: #007bff; color: white;" : "background-color: #f8f9fa; color: #333;") padding: 10px 20px; border: 1px solid #ddd; border-radius: 0 4px 4px 0; cursor: pointer;">
+            style="@(activeTab == "logs" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-radius: 0 4px 4px 0; cursor: pointer;">
         System Logs
     </button>
 </div>
@@ -41,7 +41,7 @@
         <h4 style="margin-top: 20px;">Manage Sections and Questions</h4>
 
         <div
-            style="margin: 15px 0 25px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f8f9fa;">
+            style="margin: 15px 0 25px 0; padding: 15px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
             <h5 style="margin-top: 0;">Survey Year Management</h5>
             <p style="margin: 5px 0 15px 0;">
                 Active Survey Year:
@@ -51,18 +51,18 @@
 
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <button @onclick="ArchiveCurrentAndCreateNextYear"
-                        style="padding: 8px 14px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        style="padding: 8px 14px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer;">
                     Archive Current + Create Next Year
                 </button>
                 <button @onclick="LoadSurveyEntities"
-                        style="padding: 8px 14px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        style="padding: 8px 14px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;">
                     Refresh Years
                 </button>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(surveyEntityMessage))
             {
-                <div style="padding: 10px; border-radius: 4px; margin-bottom: 10px; @(surveyEntityMessageIsError ? "background-color: #f8d7da; color: #721c24;" : "background-color: #d4edda; color: #155724;")">
+                <div style="padding: 10px; border-radius: 4px; margin-bottom: 10px; @(surveyEntityMessageIsError ? "background-color: #fffaec; color: #5f6062;" : "background-color: #d8e2b4; color: #387c2b;")">
                     @surveyEntityMessage
                 </div>
             }
@@ -71,7 +71,7 @@
             {
                 <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                     <thead>
-                        <tr style="background-color: #e9ecef; border-bottom: 1px solid #ced4da;">
+                        <tr style="background-color: #dde9ef; border-bottom: 1px solid #d1d3d5;">
                             <th style="padding: 8px; text-align: left;">Year</th>
                             <th style="padding: 8px; text-align: left;">Status</th>
                             <th style="padding: 8px; text-align: right;">Action</th>
@@ -80,10 +80,10 @@
                     <tbody>
                         @foreach (var entity in surveyEntities)
                         {
-                            <tr style="border-bottom: 1px solid #dee2e6;">
+                            <tr style="border-bottom: 1px solid #d1d3d5;">
                                 <td style="padding: 8px;">@entity.Year</td>
                                 <td style="padding: 8px;">
-                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; @(entity.Status == SurveyEntityStatus.Active ? "background-color: #28a745; color: white;" : "background-color: #6c757d; color: white;")">
+                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; @(entity.Status == SurveyEntityStatus.Active ? "background-color: #439539; color: white;" : "background-color: #5f6062; color: white;")">
                                         @entity.Status
                                     </span>
                                 </td>
@@ -91,7 +91,7 @@
                                     @if (entity.Status != SurveyEntityStatus.Active)
                                     {
                                         <button @onclick="@(() => ActivateSurveyEntity(entity.Id))"
-                                                style="padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                style="padding: 5px 10px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                                             Set ACTIVE
                                         </button>
                                     }
@@ -105,7 +105,7 @@
 
         @foreach (var sec in sections)
         {
-            <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+            <div style="margin: 20px 0; padding: 15px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
                 @RenderSection(sec, 0)
             </div>
         }
@@ -113,8 +113,8 @@
         <h4>Add New Section</h4>
         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
             <input @bind="newSectionName" placeholder="Enter section name"
-                   style="width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
-            <select @bind="newSectionParentId" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                   style="width: 400px; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
+            <select @bind="newSectionParentId" style="padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;">
                 <option value="">-- Top Level Section --</option>
                 @foreach (var sec in sections)
                 {
@@ -122,23 +122,23 @@
                 }
             </select>
             <button @onclick="HandleAddSection"
-                    style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
+                    style="padding: 8px 16px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
                 Section</button>
             </div>
 
-            <div style="margin-top: 40px; padding: 20px; border: 2px solid #dc3545; border-radius: 8px; background-color: #fff5f5;">
-                <h4 style="color: #dc3545; margin-top: 0;">⚠️ Danger Zone</h4>
-                <p style="color: #721c24; margin-bottom: 15px;">
+            <div style="margin-top: 40px; padding: 20px; border: 2px solid #387c2b; border-radius: 8px; background-color: #fffaec;">
+                <h4 style="color: #387c2b; margin-top: 0;">⚠️ Danger Zone</h4>
+                <p style="color: #5f6062; margin-bottom: 15px;">
                     <strong>Warning:</strong> This action will permanently delete ALL survey responses from the database.
                     Sections and questions will remain intact. This cannot be undone!
                 </p>
                 <button @onclick="ClearAllResponses"
-                        style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                        style="padding: 10px 20px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
                     Clear All Responses
                 </button>
                 @if (!string.IsNullOrEmpty(clearResponsesMessage))
                 {
-                    <p style="margin-top: 10px; color: @(clearResponsesMessageIsError ? "#dc3545" : "#28a745"); font-weight: 500;">
+                    <p style="margin-top: 10px; color: @(clearResponsesMessageIsError ? "#387c2b" : "#439539"); font-weight: 500;">
                         @clearResponsesMessage</p>
                     }
                 </div>
@@ -148,11 +148,11 @@ else if (activeTab == "users")
         {
             <h4 style="margin-top: 20px;">Manage Users</h4>
 
-            <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+            <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
                 <h5>Add New User</h5>
                 @if (!string.IsNullOrEmpty(userMessage))
                 {
-                    <div style="padding: 10px; margin-bottom: 15px; border-radius: 4px; @(userMessageIsError ? "background-color: #f8d7da; color: #721c24;" : "background-color: #d4edda; color: #155724;")">
+                    <div style="padding: 10px; margin-bottom: 15px; border-radius: 4px; @(userMessageIsError ? "background-color: #fffaec; color: #5f6062;" : "background-color: #d8e2b4; color: #387c2b;")">
                         @userMessage
                     </div>
                 }
@@ -161,18 +161,18 @@ else if (activeTab == "users")
                     <div>
                         <label style="display: block; margin-bottom: 5px; font-size: 14px;">Email / Username</label>
                         <input @bind="newUserEmail" placeholder="americare.org\username" autocomplete="off"
-                               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                               style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 5px; font-size: 14px;">Role</label>
-                        <select @bind="newUserRole" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <select @bind="newUserRole" style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;">
                             <option value="@UserRole.Employee">Employee</option>
                             <option value="@UserRole.Manager">Manager</option>
                             <option value="@UserRole.Admin">Admin</option>
                         </select>
                     </div>
                     <button @onclick="CreateUser"
-                            style="padding: 8px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; height: 35px;">Create
+                            style="padding: 8px 20px; background-color: #439539; color: white; border: none; border-radius: 4px; cursor: pointer; height: 35px;">Create
                         User</button>
                     </div>
                 </div>
@@ -185,7 +185,7 @@ else if (activeTab == "users")
                 {
                     <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
                         <thead>
-                            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                            <tr style="background-color: #f6f9f7; border-bottom: 2px solid #d1d3d5;">
                                 <th style="padding: 12px; text-align: left;">Email</th>
                                 <th style="padding: 12px; text-align: left;">Full Name</th>
                                 <th style="padding: 12px; text-align: left;">Role</th>
@@ -196,7 +196,7 @@ else if (activeTab == "users")
                         <tbody>
                             @foreach (var user in users)
                             {
-                                <tr style="border-bottom: 1px solid #dee2e6;">
+                                <tr style="border-bottom: 1px solid #d1d3d5;">
                                     <td style="padding: 12px;">@user.Email</td>
                                     <td style="padding: 12px;">@(string.IsNullOrWhiteSpace(user.FullName) ? "-" : user.FullName)</td>
                                     <td style="padding: 12px;">
@@ -207,13 +207,13 @@ else if (activeTab == "users")
                                             @if (user.Email != AuthStateService.CurrentUser?.Email)
                                             {
                                                 <select value="@GetPendingRole(user.Id).ToString()" @onchange="@(e => SetPendingRole(user.Id, e))"
-                                                        style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                                        style="padding: 4px 8px; border: 1px solid #d1d3d5; border-radius: 4px;">
                                                     <option value="Employee">Employee</option>
                                                     <option value="Manager">Manager</option>
                                                     <option value="Admin">Admin</option>
                                                 </select>
                                                 <button @onclick="@(() => ApplyUserRole(user.Id))" disabled="@(!CanApplyRole(user.Id))"
-                                                        style="padding: 4px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                        style="padding: 4px 10px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                                                     Apply Role
                                                 </button>
                                             }
@@ -224,11 +224,11 @@ else if (activeTab == "users")
                                         @if (user.Email != AuthStateService.CurrentUser?.Email)
                                         {
                                             <button @onclick="@(() => DeleteUser(user.Id))"
-                                                    style="padding: 4px 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                                                    style="padding: 4px 10px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
                                         }
                                         else
                                         {
-                                            <span style="color: #6c757d; font-size: 12px; font-style: italic;">(Current User)</span>
+                                            <span style="color: #5f6062; font-size: 12px; font-style: italic;">(Current User)</span>
                                         }
                                     </td>
                                 </tr>
@@ -241,7 +241,7 @@ else if (activeTab == "logs")
             {
                 <h4 style="margin-top: 20px;">System Logs</h4>
 
-                <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
                     <label style="margin-right: 10px; font-weight: bold;">Select Date:</label>
                     <select value="@selectedLogDate.ToString("yyyy-MM-dd")" @onchange="OnLogDateChanged"
                             style="padding: 8px, 5px, 10px;">
@@ -251,7 +251,7 @@ else if (activeTab == "logs")
                         }
                     </select>
                     <button @onclick="LoadLogs"
-                            style="margin-left: 10px; padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
+                            style="margin-left: 10px; padding: 8px 16px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
                 </div>
 
                 @if (currentLogs is null)
@@ -265,10 +265,10 @@ else if (activeTab == "logs")
                 else
                 {
                     <div
-                        style="background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; padding: 15px; max-height: 600px; overflow-y: auto; font-family: monospace;">
+                        style="background-color: #f6f9f7; border: 1px solid #d1d3d5; border-radius: 4px; padding: 15px; max-height: 600px; overflow-y: auto; font-family: monospace;">
                         @foreach (var log in currentLogs)
                         {
-                            <div style="margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;">@log</div>
+                            <div style="margin-bottom: 5px; border-bottom: 1px solid #d1d3d5; padding-bottom: 2px;">@log</div>
                         }
                     </div>
                 }
@@ -475,21 +475,21 @@ else if (activeTab == "logs")
                 @if (editingSectionId == sectionId)
                 {
                     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
-                        <input @bind="editSectionName" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                        <input @bind="editSectionName" style="flex: 1; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
                         <button @onclick="@(() => SaveSectionEdit(sectionId))"
-                                style="padding: 8px 16px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+                                style="padding: 8px 16px; background-color: #439539; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
                         <button @onclick="CancelSectionEdit"
-                                style="padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                                style="padding: 8px 16px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
                     </div>
                 }
                 else
                 {
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <button @onclick="@(() => StartEditSection(sectionId, sec.Name))"
-                                style="padding: 6px 12px; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">Edit
+                                style="padding: 6px 12px; background-color: #ebbc4d; color: black; border: none; border-radius: 4px; cursor: pointer;">Edit
                             Section</button>
                             <button @onclick="@(() => DeleteSection(sectionId))"
-                                    style="padding: 6px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete
+                                    style="padding: 6px 12px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete
                                 Section</button>
                             </div>
                         }
@@ -504,20 +504,20 @@ else if (activeTab == "logs")
                                         @if (editingQuestionId == questionId)
                                         {
                                             <input @bind="editQuestionText"
-                                                   style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px;" />
+                                                   style="flex: 1; padding: 6px; border: 1px solid #d1d3d5; border-radius: 4px; margin-right: 10px;" />
                                             <button @onclick="@(() => SaveQuestionEdit(questionId))"
-                                                    style="padding: 6px 12px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Save</button>
+                                                    style="padding: 6px 12px; background-color: #439539; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Save</button>
                                             <button @onclick="CancelQuestionEdit"
-                                                    style="padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                                                    style="padding: 6px 12px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
                                         }
                                         else
                                         {
                                             <span style="flex: 1;">@q.Text</span>
                                             <div style="display: flex; gap: 5px;">
                                                 <button @onclick="@(() => StartEditQuestion(questionId, q.Text))"
-                                                        style="padding: 4px 10px; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Edit</button>
+                                                        style="padding: 4px 10px; background-color: #ebbc4d; color: black; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Edit</button>
                                                 <button @onclick="@(() => DeleteQuestion(questionId))"
-                                                        style="padding: 4px 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                                                        style="padding: 4px 10px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
                                             </div>
                                         }
                                     </li>
@@ -531,9 +531,9 @@ else if (activeTab == "logs")
 
                         <div style="margin-top: 15px;">
                             <input @bind="questionTexts[sectionId]" placeholder="Enter new question text"
-                                   style="width: 400px; margin-right: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                                   style="width: 400px; margin-right: 10px; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
                             <button @onclick="@(() => HandleAddQuestion(sectionId))"
-                                    style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
+                                    style="padding: 8px 16px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
                                 Question</button>
                             </div>
 
@@ -809,10 +809,10 @@ else if (activeTab == "logs")
     {
         return role switch
         {
-            UserRole.Admin => "background-color: #dc3545; color: white;",
-            UserRole.Manager => "background-color: #ffc107; color: black;",
-            UserRole.Employee => "background-color: #28a745; color: white;",
-            _ => "background-color: #6c757d; color: white;"
+            UserRole.Admin => "background-color: #387c2b; color: white;",
+            UserRole.Manager => "background-color: #ebbc4d; color: black;",
+            UserRole.Employee => "background-color: #439539; color: white;",
+            _ => "background-color: #5f6062; color: white;"
         };
     }
 
