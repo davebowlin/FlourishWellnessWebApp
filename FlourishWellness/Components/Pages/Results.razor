@@ -31,11 +31,11 @@ else
 {
     <div style="margin-bottom: 20px; display: flex; gap: 10px;">
         <button @onclick="LoadResults"
-                style="padding: 10px 30px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                style="padding: 10px 30px; background-color: #439539; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
             Refresh Results
         </button>
         <button @onclick="ExportToCSV"
-                style="padding: 10px 30px; background-color: #17a2b8; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                style="padding: 10px 30px; background-color: #269cce; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
             Export to CSV
         </button>
     </div>
@@ -113,10 +113,10 @@ else
         var marginLeft = level * 20;
 
         builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;");
+        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;");
 
         builder.OpenElement(2, "h4");
-        builder.AddAttribute(3, "style", "margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;");
+        builder.AddAttribute(3, "style", "margin-top: 0; color: #5f6062; border-bottom: 2px solid #196887; padding-bottom: 10px;");
         builder.AddContent(4, level > 0 ? $"? {sec.Name}" : sec.Name);
         builder.CloseElement();
 
@@ -128,12 +128,12 @@ else
                 builder.AddAttribute(6, "style", "margin: 20px 0; padding: 15px; background-color: white; border-radius: 5px;");
 
                 builder.OpenElement(7, "h5");
-                builder.AddAttribute(8, "style", "color: #555; margin-top: 0;");
+                builder.AddAttribute(8, "style", "color: #5f6062; margin-top: 0;");
                 builder.AddContent(9, question.Text);
                 builder.CloseElement();
 
                 builder.OpenElement(10, "p");
-                builder.AddAttribute(11, "style", "color: #666; font-size: 14px; margin-bottom: 10px;");
+                builder.AddAttribute(11, "style", "color: #5f6062; font-size: 14px; margin-bottom: 10px;");
                 builder.OpenElement(12, "strong");
                 builder.AddContent(13, question.Responses.Count.ToString());
                 builder.CloseElement();
@@ -150,7 +150,7 @@ else
                         : response.User?.Email ?? "Unknown User";
 
                     builder.OpenElement(17, "li");
-                    builder.AddAttribute(18, "style", "padding: 8px; margin: 5px 0; background-color: #f0f0f0; border-left: 3px solid #007bff; border-radius: 3px;");
+                    builder.AddAttribute(18, "style", "padding: 8px; margin: 5px 0; background-color: #f6f9f7; border-left: 3px solid #196887; border-radius: 3px;");
                     builder.AddContent(19, $"{respondentName}: {response.Answer}");
                     builder.CloseElement();
                 }
