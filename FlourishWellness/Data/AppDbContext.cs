@@ -11,7 +11,7 @@ namespace FlourishWellness.Data
         public DbSet<Question> Questions => Set<Question>();
         public DbSet<Response> Responses => Set<Response>();
         public DbSet<User> Users => Set<User>();
-        public DbSet<SurveyEntity> SurveyEntities => Set<SurveyEntity>();
+        public DbSet<SurveyYear> SurveyYears => Set<SurveyYear>();
         public DbSet<UserSurveyStatus> UserSurveyStatuses => Set<UserSurveyStatus>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,30 +26,27 @@ namespace FlourishWellness.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            modelBuilder.Entity<SurveyEntity>()
+            modelBuilder.Entity<SurveyYear>()
                 .HasIndex(e => e.Year)
                 .IsUnique();
 
-            modelBuilder.Entity<SurveyEntity>()
+            modelBuilder.Entity<SurveyYear>()
                 .HasMany(e => e.Sections)
-                .WithOne(s => s.SurveyEntity)
-                .HasForeignKey(s => s.SurveyEntityId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .WithOne(s => s.SurveyYear)
+                .HasForeignKey(s => s.SurveyYearId);
 
             modelBuilder.Entity<Question>()
-                .HasOne(q => q.SurveyEntity)
+                .HasOne(q => q.SurveyYear)
                 .WithMany()
-                .HasForeignKey(q => q.SurveyEntityId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey(q => q.SurveyYearId);
 
             modelBuilder.Entity<Response>()
-                .HasOne(r => r.SurveyEntity)
+                .HasOne(r => r.SurveyYear)
                 .WithMany()
-                .HasForeignKey(r => r.SurveyEntityId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey(r => r.SurveyYearId);
 
             modelBuilder.Entity<UserSurveyStatus>()
-                .HasIndex(x => new { x.UserId, x.SurveyEntityId })
+                .HasIndex(x => new { x.UserId, x.SurveyYearId })
                 .IsUnique();
         }
     }

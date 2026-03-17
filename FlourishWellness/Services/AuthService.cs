@@ -56,10 +56,16 @@ namespace FlourishWellness.Services
                 var fullName = _adUserService.GetFullName(principal) ?? adName;
                 var email = $"americare.org\\{adName}"; // Format: americare.org\username
                 var samAccountName = _adUserService.GetSamAccountName(principal) ?? adName;
-                var extensionAttribute10 = _adUserService.GetExtensionAttribute10(principal, samAccountName);
+                // var extensionAttribute10 = _adUserService.GetExtensionAttribute10(principal, samAccountName);  # Not currently being used.
 
                 using var context = await _factory.CreateDbContextAsync();
-                var user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+                var user = await context.Users.FirstOrDefaultAsync(u =>
+                    u.SAMAccountName.ToLower() == samAccountName.ToLower());
+
+                if (user == null)
+                {
+                    user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+                }
 
                 if (user == null)
                 {
@@ -69,7 +75,7 @@ namespace FlourishWellness.Services
                         Email = email,
                         FullName = fullName,
                         SAMAccountName = samAccountName,
-                        ExtensionAttribute10 = extensionAttribute10 ?? string.Empty,
+                        //ExtensionAttribute10 = string.Empty, // Not currently being used.
                         PasswordHash = string.Empty, // Not used for AD
                         Role = Models.UserRole.Employee,
                         CreatedAt = DateTime.UtcNow
@@ -80,10 +86,10 @@ namespace FlourishWellness.Services
                 {
                     user.FullName = fullName;
                     user.SAMAccountName = samAccountName;
-                    if (!string.IsNullOrWhiteSpace(extensionAttribute10))
+                    /*  if (!string.IsNullOrWhiteSpace(extensionAttribute10))  # Not currently being used.
                     {
                         user.ExtensionAttribute10 = extensionAttribute10;
-                    }
+                    } */
                 }
 
                 await context.SaveChangesAsync();
@@ -114,8 +120,8 @@ namespace FlourishWellness.Services
                 Email = email,
                 FullName = email,
                 SAMAccountName = email.Contains('\\') ? email.Split('\\')[1] : email,
-                ExtensionAttribute10 = string.Empty,
-                PasswordHash = string.Empty, // No password for AD users
+                // ExtensionAttribute10 = string.Empty,
+                // PasswordHash = string.Empty, // No password for AD users
                 Role = role,
                 CreatedAt = DateTime.UtcNow
             };
@@ -167,8 +173,53 @@ namespace FlourishWellness.Services
             return await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
+        public async Task<User?> GetUserBySamAccountNameAsync(string samAccountName)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            return await context.Users.FirstOrDefaultAsync(u => u.SAMAccountName.ToLower() == samAccountName.ToLower());
+        }
+
         public async Task<User?> AuthenticateLocalAdminAsync(string username, string password)
         {
+            if (!string.Equals(username?.Trim(), "admin", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(password, "admin", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            using var context = await _factory.CreateDbContextAsync();
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == "admin");
+            if (user == null)
+            {
+                user = new User
+                {
+                    Email = "admin",
+                    FullName = "Administrator",
+                    SAMAccountName = "admin",
+                    PasswordHash = "admin",
+                    Role = UserRole.Admin,
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.Users.Add(user);
+            }
+            else
+            {
+                user.Role = UserRole.Admin;
+                if (string.IsNullOrWhiteSpace(user.FullName)) user.FullName = "Administrator";
+                if (string.IsNullOrWhiteSpace(user.PasswordHash)) user.PasswordHash = "admin";
+                if (string.IsNullOrWhiteSpace(user.SAMAccountName)) user.SAMAccountName = "admin";
+            }
+
+            await context.SaveChangesAsync();
+            await _logService.LogAsync("Local admin login", user.Email);
+            return user;
+        }
+
+        /* public async Task<User?> AuthenticateLocalAdminAsync(string username, string password)
+        {
+            // IMPORTANT!! This is a fallback local admin account. In production, you should change the password
+            // immediately after first login. This code ensures one admin can access the system even if AD is
+            // unavailable or whatever. 
             if (!string.Equals(username?.Trim(), "admin", StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(password, "admin", StringComparison.Ordinal))
             {
@@ -184,7 +235,7 @@ namespace FlourishWellness.Services
                     Email = "admin",
                     FullName = "Administrator",
                     SAMAccountName = "admin",
-                    ExtensionAttribute10 = string.Empty,
+                    //ExtensionAttribute10 = string.Empty,
                     PasswordHash = "admin",
                     Role = UserRole.Admin,
                     CreatedAt = DateTime.UtcNow
@@ -214,7 +265,7 @@ namespace FlourishWellness.Services
 
             await context.SaveChangesAsync();
             await _logService.LogAsync("Local admin login", user.Email);
-            return user;
-        }
+            return user; 
+        }*/
     }
 }

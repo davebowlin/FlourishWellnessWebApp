@@ -11,6 +11,29 @@
         An AmericareUSA Initiative
     </p>
 
+    @if (AuthStateService.RequiresFacilitySelection)
+    {
+        <div style="max-width: 900px; margin: 0 auto 30px auto; padding: 24px; border: 3px solid #ebbc4d; border-radius: 8px; background-color: #fffaec; color: #5f6062;">
+            <h3 style="margin-top: 0;">Facility selection required</h3>
+            <p style="font-size: 18px; margin-bottom: 16px;">
+                Your AD account is linked to multiple facilities. Choose the facility you are logging in as before continuing.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                <select @bind="selectedFacilityValue" style="min-width: 420px; padding: 10px; border: 1px solid #d1d3d5; border-radius: 4px;">
+                    <option value="">-- Select facility --</option>
+                    @foreach (var option in AuthStateService.ADFacilities)
+                    {
+                        <option value="@BuildSelectionValue(option)">@option.Facility (@(string.IsNullOrWhiteSpace(option.CommunityKey) ? "No CommunityKey" : option.CommunityKey))</option>
+                    }
+                </select>
+                <button @onclick="SaveFacilitySelection"
+                        style="padding: 10px 20px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Confirm Facility
+                </button>
+            </div>
+        </div>
+    }
+
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 50px;">
         <div style="padding: 30px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
             <h3 style="color: #269cce; margin-top: 0;">📊 Dashboard</h3>
@@ -61,9 +84,34 @@
 </div>
 
 @code {
+    private string selectedFacilityValue = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         await AuthStateService.InitializeAsync();
         await AuthStateService.RefreshCurrentUserAsync();
+
+        if (AuthStateService.SelectedFacility != null)
+        {
+            selectedFacilityValue = BuildSelectionValue(AuthStateService.SelectedFacility);
+        }
+    }
+
+    private static string BuildSelectionValue(FlourishWellness.Models.ADFacilityUser facility)
+    {
+        return $"{facility.Facility}|{facility.CommunityKey}";
+    }
+
+    private async Task SaveFacilitySelection()
+    {
+        if (string.IsNullOrWhiteSpace(selectedFacilityValue))
+        {
+            return;
+        }
+
+        var split = selectedFacilityValue.Split('|', 2);
+        var facility = split[0];
+        var communityKey = split.Length > 1 ? split[1] : null;
+        await AuthStateService.SetSelectedFacilityAsync(facility, communityKey);
     }
 }

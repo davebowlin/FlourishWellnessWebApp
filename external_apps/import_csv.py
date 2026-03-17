@@ -106,19 +106,19 @@ def import_csv_to_db(csv_path, db_type, db_target):
 
     survey_entity_id = get_active_survey_entity_id(cur, db_type)
     sections_have_survey_entity = column_exists(
-        cur, db_type, "Sections", "SurveyEntityId"
+        cur, db_type, "Sections", "SurveyYear"
     )
     questions_have_survey_entity = column_exists(
-        cur, db_type, "Questions", "SurveyEntityId"
+        cur, db_type, "Questions", "SurveyYear"
     )
 
     if sections_have_survey_entity and survey_entity_id is None:
         raise RuntimeError(
-            "Sections requires SurveyEntityId, but no SurveyEntities row was found."
+            "Sections requires SurveyYear, but no SurveyEntities row was found."
         )
     if questions_have_survey_entity and survey_entity_id is None:
         raise RuntimeError(
-            "Questions requires SurveyEntityId, but no SurveyEntities row was found."
+            "Questions requires SurveyYear, but no SurveyEntities row was found."
         )
 
     section_cache = {}  # Cache section IDs to avoid duplicate lookups
@@ -175,7 +175,7 @@ def insert_section_and_get_id(
     if db_type == "sqlserver":
         if sections_have_survey_entity:
             cur.execute(
-                "INSERT INTO Sections (Name, ParentSectionId, SurveyEntityId) OUTPUT INSERTED.Id VALUES (?, ?, ?)",
+                "INSERT INTO Sections (Name, ParentSectionId, SurveyYear) OUTPUT INSERTED.Id VALUES (?, ?, ?)",
                 (section_name, parent_section_id, survey_entity_id),
             )
         else:
@@ -194,7 +194,7 @@ def insert_section_and_get_id(
     if db_type == "sqlite":
         if sections_have_survey_entity:
             cur.execute(
-                "INSERT INTO Sections (Name, ParentSectionId, SurveyEntityId) VALUES (?, ?, ?)",
+                "INSERT INTO Sections (Name, ParentSectionId, SurveyYear) VALUES (?, ?, ?)",
                 (section_name, parent_section_id, survey_entity_id),
             )
         else:
@@ -241,7 +241,7 @@ def process_row(
     if section_name not in section_cache:
         if sections_have_survey_entity:
             cur.execute(
-                "SELECT Id FROM Sections WHERE Name = ? AND ParentSectionId IS NULL AND SurveyEntityId = ?",
+                "SELECT Id FROM Sections WHERE Name = ? AND ParentSectionId IS NULL AND SurveyYear = ?",
                 (section_name, survey_entity_id),
             )
         else:
@@ -273,7 +273,7 @@ def process_row(
         if subsection_key not in section_cache:
             if sections_have_survey_entity:
                 cur.execute(
-                    "SELECT Id FROM Sections WHERE Name = ? AND ParentSectionId = ? AND SurveyEntityId = ?",
+                    "SELECT Id FROM Sections WHERE Name = ? AND ParentSectionId = ? AND SurveyYear = ?",
                     (subsection_name, section_id, survey_entity_id),
                 )
             else:
@@ -313,7 +313,7 @@ def process_row(
             else:
                 if questions_have_survey_entity:
                     cur.execute(
-                        "INSERT INTO Questions (Text, SurveyEntityId, SectionId) VALUES (?, ?, ?)",
+                        "INSERT INTO Questions (Text, SurveyYear, SectionId) VALUES (?, ?, ?)",
                         (question_text, survey_entity_id, target_section_id),
                     )
                 else:

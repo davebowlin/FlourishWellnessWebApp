@@ -38,8 +38,4 @@
     <Folder Include="Logs\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="Properties\launchSettings - Copy.json" />
-  </ItemGroup>
-
 </Project>

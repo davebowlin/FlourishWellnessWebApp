@@ -14,8 +14,11 @@ namespace FlourishWellness.Services
         private readonly IDbContextFactory<AppDbContext> _dbFactory;
         private readonly AuthenticationStateProvider _authStateProvider;
         private readonly AuthService _authService;
+        private readonly ADFacilityService _adFacilityService;
         private User? _currentUser;
         private bool _isInitialized = false;
+        private List<ADFacilityUser> _adFacilities = new();
+        private ADFacilityUser? _selectedFacility;
 
         public event Action? OnAuthStateChanged;
 
@@ -24,13 +27,15 @@ namespace FlourishWellness.Services
             LogService logService,
             IDbContextFactory<AppDbContext> dbFactory,
             AuthenticationStateProvider authStateProvider,
-            AuthService authService)
+            AuthService authService,
+            ADFacilityService adFacilityService)
         {
             _sessionStorage = sessionStorage;
             _logService = logService;
             _dbFactory = dbFactory;
             _authStateProvider = authStateProvider;
             _authService = authService;
+            _adFacilityService = adFacilityService;
         }
 
         public User? CurrentUser
@@ -47,6 +52,10 @@ namespace FlourishWellness.Services
         public bool IsAdmin => CurrentUser?.Role == UserRole.Admin;
         public bool IsManager => CurrentUser?.Role == UserRole.Manager;
         public bool IsEmployee => CurrentUser?.Role == UserRole.Employee;
+        public IReadOnlyList<ADFacilityUser> ADFacilities => _adFacilities;
+        public ADFacilityUser? SelectedFacility => _selectedFacility;
+        public bool RequiresFacilitySelection => _adFacilities.Select(x => x.Facility).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1
+            && _selectedFacility == null;
 
         public async Task InitializeAsync()
         {
@@ -72,6 +81,7 @@ namespace FlourishWellness.Services
             if (CurrentUser != null)
             {
                 await RefreshCurrentUserAsync();
+                await LoadADFacilitiesAsync();
             }
 
             if (CurrentUser == null)
@@ -86,6 +96,7 @@ namespace FlourishWellness.Services
                         if (dbUser != null)
                         {
                             await SetUserAsync(dbUser);
+                            await LoadADFacilitiesAsync();
                         }
                         else
                         {
@@ -104,17 +115,92 @@ namespace FlourishWellness.Services
             _isInitialized = true;
         }
 
-        public async Task RefreshCurrentUserAsync()
+        public async Task LoadADFacilitiesAsync()
         {
-            if (CurrentUser == null || string.IsNullOrWhiteSpace(CurrentUser.Email))
+            _adFacilities = new List<ADFacilityUser>();
+            _selectedFacility = null;
+
+            if (CurrentUser == null || string.IsNullOrWhiteSpace(CurrentUser.SAMAccountName))
+            {
+                OnAuthStateChanged?.Invoke();
+                return;
+            }
+
+            try
+            {
+                _adFacilities = await _adFacilityService.GetFacilitiesForSamAccountAsync(CurrentUser.SAMAccountName);
+
+                if (_adFacilities.Count == 1)
+                {
+                    _selectedFacility = _adFacilities[0];
+                    await _sessionStorage.SetAsync("selectedFacility", _selectedFacility.Facility);
+                    await _sessionStorage.SetAsync("selectedCommunityKey", _selectedFacility.CommunityKey ?? string.Empty);
+                }
+                else if (_adFacilities.Count > 1)
+                {
+                    var savedFacility = await _sessionStorage.GetAsync<string>("selectedFacility");
+                    var savedCommunityKey = await _sessionStorage.GetAsync<string>("selectedCommunityKey");
+
+                    if (savedFacility.Success && !string.IsNullOrWhiteSpace(savedFacility.Value))
+                    {
+                        _selectedFacility = _adFacilities.FirstOrDefault(x =>
+                            string.Equals(x.Facility, savedFacility.Value, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(x.CommunityKey ?? string.Empty, savedCommunityKey.Value ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await _logService.LogAsync($"Unable to load AD facilities: {ex.Message}", CurrentUser.Email);
+            }
+
+            OnAuthStateChanged?.Invoke();
+        }
+
+        public async Task SetSelectedFacilityAsync(string facility, string? communityKey)
+        {
+            if (_adFacilities.Count == 0)
             {
                 return;
             }
 
-            var dbUser = await _authService.GetUserByEmailAsync(CurrentUser.Email);
+            var selected = _adFacilities.FirstOrDefault(x =>
+                string.Equals(x.Facility, facility, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.CommunityKey ?? string.Empty, communityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+
+            if (selected == null)
+            {
+                return;
+            }
+
+            _selectedFacility = selected;
+            await _sessionStorage.SetAsync("selectedFacility", selected.Facility);
+            await _sessionStorage.SetAsync("selectedCommunityKey", selected.CommunityKey ?? string.Empty);
+            OnAuthStateChanged?.Invoke();
+        }
+
+        public async Task RefreshCurrentUserAsync()
+        {
+            if (CurrentUser == null)
+            {
+                return;
+            }
+
+            User? dbUser = null;
+            if (!string.IsNullOrWhiteSpace(CurrentUser.Email))
+            {
+                dbUser = await _authService.GetUserByEmailAsync(CurrentUser.Email);
+            }
+
+            if (dbUser == null && !string.IsNullOrWhiteSpace(CurrentUser.SAMAccountName))
+            {
+                dbUser = await _authService.GetUserBySamAccountNameAsync(CurrentUser.SAMAccountName);
+            }
+
             if (dbUser != null)
             {
                 await SetUserAsync(dbUser);
+                await LoadADFacilitiesAsync();
             }
             else
             {
@@ -152,7 +238,11 @@ namespace FlourishWellness.Services
                 await _logService.LogAsync("User logged out", CurrentUser.Email);
             }
             CurrentUser = null;
+            _selectedFacility = null;
+            _adFacilities = new List<ADFacilityUser>();
             await _sessionStorage.DeleteAsync("currentUser");
+            await _sessionStorage.DeleteAsync("selectedFacility");
+            await _sessionStorage.DeleteAsync("selectedCommunityKey");
         }
     }
 }
