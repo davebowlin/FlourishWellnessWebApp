@@ -193,26 +193,9 @@ namespace FlourishWellness.Services
             var user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == "admin");
             if (user == null)
             {
-                user = new User
-                {
-                    Email = "admin",
-                    FullName = "Administrator",
-                    SAMAccountName = "admin",
-                    PasswordHash = "admin",
-                    Role = UserRole.Admin,
-                    CreatedAt = DateTime.UtcNow
-                };
-                context.Users.Add(user);
-            }
-            else
-            {
-                user.Role = UserRole.Admin;
-                if (string.IsNullOrWhiteSpace(user.FullName)) user.FullName = "Administrator";
-                if (string.IsNullOrWhiteSpace(user.PasswordHash)) user.PasswordHash = "admin";
-                if (string.IsNullOrWhiteSpace(user.SAMAccountName)) user.SAMAccountName = "admin";
+                return null;
             }
 
-            await context.SaveChangesAsync();
             await _logService.LogAsync("Local admin login", user.Email);
             return user;
         }
