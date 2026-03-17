@@ -32,7 +32,7 @@ namespace FlourishWellness.Services
             return sam;
         }
 
-        public string? GetExtensionAttribute10(ClaimsPrincipal user, string? samAccountName = null)
+       /*  public string? GetExtensionAttribute10(ClaimsPrincipal user, string? samAccountName = null)
         {
             if (user?.Identity?.IsAuthenticated != true)
             {
@@ -56,7 +56,7 @@ namespace FlourishWellness.Services
             return GetExtensionAttribute10FromDirectory(sam);
         }
 
-        private string? GetExtensionAttribute10FromDirectory(string samAccountName)
+        /* private string? GetExtensionAttribute10FromDirectory(string samAccountName)
         {
             if (!OperatingSystem.IsWindows())
             {
@@ -84,7 +84,7 @@ namespace FlourishWellness.Services
             {
                 return null;
             }
-        }
+        } */
 
         public string? GetFullName(ClaimsPrincipal user)
         {

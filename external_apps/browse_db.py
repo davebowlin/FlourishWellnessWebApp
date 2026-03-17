@@ -3,7 +3,7 @@
 
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, simpledialog
 
 import pyodbc
 
@@ -44,6 +44,9 @@ class DatabaseBrowserApp:
         )
         ttk.Button(top, text="Load Selected Table", command=self.load_selected_table).pack(
             side=tk.LEFT
+        )
+        ttk.Button(top, text="Delete Data", command=on_delete_data).pack(
+            side=tk.LEFT, padx=(0, 8)
         )
 
         self.status_var = tk.StringVar(value="Ready")
@@ -150,6 +153,77 @@ class DatabaseBrowserApp:
         self.status_var.set(
             f"{table_label}: {len(rows)} row(s), {len(columns)} column(s)"
         )
+
+
+def fetch_tables():
+    """Fetch the list of tables from the database."""
+    try:
+        with pyodbc.connect(DB_CONN_STR) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+            return [row[0] for row in cursor.fetchall()]
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to fetch tables: {e}")
+        return []
+
+
+def fetch_table_data(table_name):
+    """Fetch data from the selected table."""
+    try:
+        with pyodbc.connect(DB_CONN_STR) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table_name}")
+            columns = [column[0] for column in cursor.description]
+            rows = cursor.fetchall()
+            return columns, rows
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to fetch data: {e}")
+        return [], []
+
+
+def delete_data_from_table(table_name, condition):
+    """Delete data from the specified table based on a condition."""
+    try:
+        with pyodbc.connect(DB_CONN_STR) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"DELETE FROM {table_name} WHERE {condition}")
+            conn.commit()
+            messagebox.showinfo("Success", f"Data deleted from {table_name} where {condition}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to delete data: {e}")
+
+
+def on_table_select(event):
+    """Handle table selection and display data."""
+    selected_table = table_listbox.get(table_listbox.curselection())
+    columns, rows = fetch_table_data(selected_table)
+
+    # Clear the treeview
+    for col in tree.get_children():
+        tree.delete(col)
+
+    # Set columns
+    tree["columns"] = columns
+    tree["show"] = "headings"
+    for col in columns:
+        tree.heading(col, text=col)
+        tree.column(col, width=100)
+
+    # Insert rows
+    for row in rows:
+        tree.insert("", "end", values=row)
+
+
+def on_delete_data():
+    """Prompt user to delete data from the selected table."""
+    selected_table = table_listbox.get(table_listbox.curselection())
+    if not selected_table:
+        messagebox.showwarning("Warning", "Please select a table first.")
+        return
+
+    condition = simpledialog.askstring("Delete Data", f"Enter the condition for deletion in {selected_table} (e.g., UserId = 123):")
+    if condition:
+        delete_data_from_table(selected_table, condition)
 
 
 if __name__ == "__main__":

@@ -45,8 +45,8 @@
             <h5 style="margin-top: 0;">Survey Year Management</h5>
             <p style="margin: 5px 0 15px 0;">
                 Active Survey Year:
-                <strong>@(activeSurveyEntity is null ? "None" : activeSurveyEntity.Year.ToString())</strong>
-                (@(activeSurveyEntity is null ? "Unknown" : activeSurveyEntity.Status.ToString()))
+                <strong>@(activeSurveyYear is null ? "None" : activeSurveyYear.Year.ToString())</strong>
+                (@(activeSurveyYear is null ? "Unknown" : activeSurveyYear.Status.ToString()))
             </p>
 
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -60,14 +60,14 @@
                 </button>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(surveyEntityMessage))
+            @if (!string.IsNullOrWhiteSpace(SurveyYearMessage))
             {
-                <div style="padding: 10px; border-radius: 4px; margin-bottom: 10px; @(surveyEntityMessageIsError ? "background-color: #fffaec; color: #5f6062;" : "background-color: #d8e2b4; color: #387c2b;")">
-                    @surveyEntityMessage
+                <div style="padding: 10px; border-radius: 4px; margin-bottom: 10px; @(SurveyYearMessageIsError ? "background-color: #fffaec; color: #5f6062;" : "background-color: #d8e2b4; color: #387c2b;")">
+                    @SurveyYearMessage
                 </div>
             }
 
-            @if (surveyEntities.Any())
+            @if (surveyYears.Any())
             {
                 <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                     <thead>
@@ -78,19 +78,19 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var entity in surveyEntities)
+                        @foreach (var entity in surveyYears)
                         {
                             <tr style="border-bottom: 1px solid #d1d3d5;">
                                 <td style="padding: 8px;">@entity.Year</td>
                                 <td style="padding: 8px;">
-                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; @(entity.Status == SurveyEntityStatus.Active ? "background-color: #439539; color: white;" : "background-color: #5f6062; color: white;")">
+                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; @(entity.Status == SurveyYearStatus.Active ? "background-color: #439539; color: white;" : "background-color: #5f6062; color: white;")">
                                         @entity.Status
                                     </span>
                                 </td>
                                 <td style="padding: 8px; text-align: right;">
-                                    @if (entity.Status != SurveyEntityStatus.Active)
+                                    @if (entity.Status != SurveyYearStatus.Active)
                                     {
-                                        <button @onclick="@(() => ActivateSurveyEntity(entity.Id))"
+                                        <button @onclick="@(() => ActivateSurveyYear(entity.Id))"
                                                 style="padding: 5px 10px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                                             Set ACTIVE
                                         </button>
@@ -278,10 +278,10 @@ else if (activeTab == "logs")
     private string activeTab = "survey";
     private List<Section>? sections;
     private List<User>? users;
-    private List<SurveyEntity> surveyEntities = new();
-    private SurveyEntity? activeSurveyEntity;
-    private string surveyEntityMessage = string.Empty;
-    private bool surveyEntityMessageIsError = false;
+    private List<SurveyYear> surveyYears = new();
+    private SurveyYear? activeSurveyYear;
+    private string SurveyYearMessage = string.Empty;
+    private bool SurveyYearMessageIsError = false;
 
     // Log management fields
     private List<string>? currentLogs;
@@ -346,7 +346,7 @@ else if (activeTab == "logs")
                 InitializeQuestionTextsForSection(sec);
             }
 
-            activeSurveyEntity = await SurveyService.GetActiveSurveyEntityAsync();
+            activeSurveyYear = await SurveyService.GetActiveSurveyYearAsync();
         }
         catch (Exception ex)
         {
@@ -357,14 +357,14 @@ else if (activeTab == "logs")
 
     private async Task LoadSurveyEntities()
     {
-        surveyEntities = await SurveyService.GetSurveyEntitiesAsync();
-        activeSurveyEntity = surveyEntities.FirstOrDefault(e => e.Status == SurveyEntityStatus.Active);
+        surveyYears = await SurveyService.GetSurveyYearsAsync();
+        activeSurveyYear = surveyYears.FirstOrDefault(e => e.Status == SurveyYearStatus.Active);
     }
 
     private async Task ArchiveCurrentAndCreateNextYear()
     {
-        surveyEntityMessage = string.Empty;
-        surveyEntityMessageIsError = false;
+        SurveyYearMessage = string.Empty;
+        SurveyYearMessageIsError = false;
 
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
             "Archive the current ACTIVE survey year and create the next year as ACTIVE?");
@@ -379,35 +379,35 @@ else if (activeTab == "logs")
             var next = await SurveyService.ArchiveActiveAndCreateNextAsync();
             await LogActionAsync($"Archived current survey year and created ACTIVE survey year {next.Year}");
 
-            surveyEntityMessage = $"Survey year {next.Year} is now ACTIVE. Previous year was archived.";
+            SurveyYearMessage = $"Survey year {next.Year} is now ACTIVE. Previous year was archived.";
             await LoadSurveyEntities();
             await LoadSections();
         }
         catch (Exception ex)
         {
-            surveyEntityMessageIsError = true;
-            surveyEntityMessage = $"Unable to archive/create year: {ex.Message}";
+            SurveyYearMessageIsError = true;
+            SurveyYearMessage = $"Unable to archive/create year: {ex.Message}";
         }
     }
 
-    private async Task ActivateSurveyEntity(int surveyEntityId)
+    private async Task ActivateSurveyYear(int SurveyYear)
     {
-        surveyEntityMessage = string.Empty;
-        surveyEntityMessageIsError = false;
+        SurveyYearMessage = string.Empty;
+        SurveyYearMessageIsError = false;
 
         try
         {
-            await SurveyService.SetActiveSurveyEntityAsync(surveyEntityId);
-            await LogActionAsync($"Set survey entity {surveyEntityId} as ACTIVE");
+            await SurveyService.SetActiveSurveyYearAsync(SurveyYear);
+            await LogActionAsync($"Set survey entity {SurveyYear} as ACTIVE");
 
-            surveyEntityMessage = "Selected survey year is now ACTIVE.";
+            SurveyYearMessage = "Selected survey year is now ACTIVE.";
             await LoadSurveyEntities();
             await LoadSections();
         }
         catch (Exception ex)
         {
-            surveyEntityMessageIsError = true;
-            surveyEntityMessage = $"Unable to set ACTIVE year: {ex.Message}";
+            SurveyYearMessageIsError = true;
+            SurveyYearMessage = $"Unable to set ACTIVE year: {ex.Message}";
         }
     }
 

@@ -130,7 +130,7 @@ def populate_surveys():
             raise RuntimeError("No active survey found (SurveyEntities.Status = 2).")
         survey_id = survey_row.Id
 
-        cursor.execute("SELECT Id FROM Questions WHERE SurveyEntityId = ? ORDER BY Id", survey_id)
+        cursor.execute("SELECT Id FROM Questions WHERE SurveyYear = ? ORDER BY Id", survey_id)
         question_ids = [r.Id for r in cursor.fetchall()]
         if not question_ids:
             raise RuntimeError(f"No questions found for active survey {survey_id}.")
@@ -140,12 +140,12 @@ def populate_surveys():
             username = format_domain_username(sam_account_name)
             user_id = get_or_create_user(cursor, username, full_name)
 
-            cursor.execute("DELETE FROM Responses WHERE UserId = ? AND SurveyEntityId = ?", user_id, survey_id)
+            cursor.execute("DELETE FROM Responses WHERE UserId = ? AND SurveyYear = ?", user_id, survey_id)
 
             answered_questions = choose_answer_set(question_ids, is_complete)
             for question_id in answered_questions:
                 cursor.execute(
-                    "INSERT INTO Responses (Answer, SurveyEntityId, QuestionId, UserId) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO Responses (Answer, SurveyYear, QuestionId, UserId) VALUES (?, ?, ?, ?)",
                     random.choice(ANSWER_CHOICES),
                     survey_id,
                     question_id,
@@ -153,21 +153,21 @@ def populate_surveys():
                 )
 
             cursor.execute(
-                "SELECT 1 FROM UserSurveyStatuses WHERE UserId = ? AND SurveyEntityId = ?",
+                "SELECT 1 FROM UserSurveyStatuses WHERE UserId = ? AND SurveyYear = ?",
                 user_id,
                 survey_id,
             )
             if cursor.fetchone():
                 cursor.execute(
                     "UPDATE UserSurveyStatuses SET IsCompleted = ?, UpdatedAt = GETUTCDATE()"
-                    " WHERE UserId = ? AND SurveyEntityId = ?",
+                    " WHERE UserId = ? AND SurveyYear = ?",
                     is_complete,
                     user_id,
                     survey_id,
                 )
             else:
                 cursor.execute(
-                    "INSERT INTO UserSurveyStatuses (UserId, SurveyEntityId, IsCompleted, UpdatedAt)"
+                    "INSERT INTO UserSurveyStatuses (UserId, SurveyYear, IsCompleted, UpdatedAt)"
                     " VALUES (?, ?, ?, GETUTCDATE())",
                     user_id,
                     survey_id,

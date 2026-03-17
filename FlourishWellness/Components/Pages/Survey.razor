@@ -31,6 +31,13 @@ else
         </div>
     }
 
+    @if (AuthStateService.RequiresFacilitySelection)
+    {
+        <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062; font-size: 18px; font-weight: 600;">
+            Multiple AD facilities were found for your account. Please return to the home page and choose your facility before saving or submitting.
+        </div>
+    }
+
     @if (!string.IsNullOrEmpty(saveMessage))
     {
         <div style="position: fixed; top: 20px; right: 20px; padding: 15px; background-color: #d8e2b4; color: #387c2b; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000;">
@@ -269,8 +276,17 @@ else
     private async Task SaveProgress()
     {
         if (AuthStateService.CurrentUser == null) return;
+        if (AuthStateService.RequiresFacilitySelection)
+        {
+            errorMessage = "Please select your facility first from the home page.";
+            return;
+        }
 
-        await SurveyService.SaveUserResponsesAsync(AuthStateService.CurrentUser.Id, responses);
+        await SurveyService.SaveUserResponsesAsync(
+            AuthStateService.CurrentUser.Id,
+            responses,
+            AuthStateService.CurrentUser.SAMAccountName,
+            AuthStateService.SelectedFacility?.CommunityKey);
         saveMessage = "Progress saved successfully!";
         await LogService.LogAsync("Saved survey progress", AuthStateService.CurrentUser.Email);
         
@@ -281,6 +297,11 @@ else
     private async Task SubmitSurvey()
     {
         if (AuthStateService.CurrentUser == null) return;
+        if (AuthStateService.RequiresFacilitySelection)
+        {
+            errorMessage = "Please select your facility first from the home page.";
+            return;
+        }
 
         // Validate all questions answered
         var allQuestions = GetAllQuestions(sections);
@@ -293,7 +314,11 @@ else
         }
 
         // Save final responses
-        await SurveyService.SaveUserResponsesAsync(AuthStateService.CurrentUser.Id, responses);
+        await SurveyService.SaveUserResponsesAsync(
+            AuthStateService.CurrentUser.Id,
+            responses,
+            AuthStateService.CurrentUser.SAMAccountName,
+            AuthStateService.SelectedFacility?.CommunityKey);
         
         // Mark complete
         var completed = await SurveyService.CompleteSurveyAsync(AuthStateService.CurrentUser.Id);

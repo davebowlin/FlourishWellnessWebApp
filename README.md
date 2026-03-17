@@ -1,80 +1,93 @@
 # FlourishWellness
 
-This is the Wellness Survey app.  It uses .NET 10 and Blazor.
+Survey app built with Blazor on .NET 10.
 
-## Year-Based Survey Setup (important)
+## What this app uses
 
-The survey is now grouped by year entities.
+- Blazor Server (`net10.0`)
+- Entity Framework Core + SQL Server
+- Windows Authentication (Negotiate) for normal sign-in
+- Role-based access (`Employee`, `Manager`, `Admin`)
 
-- Only one year can be ACTIVE (read/write) at a time.
-- Archived years are read-only.
-- Admin can archive the active year and auto-create the next year.
-- New year copies the section/question layout from the old active year.
-- Responses stay with their original year.
+There is also an `/admin-login` page, but it only works if an `admin` user already exists in the database.
 
-So example:
+## Survey year behavior
 
-- 2026 = ACTIVE (users answer this one)
-- Admin archives 2026
-- App creates 2027 = ACTIVE
-- 2026 stays saved as archived data
+Surveys are grouped by year.
 
-## Super Simple Production Server Steps (IIS + Windows Login)
+- Only one year is active at a time.
+- Active year is where users can answer/edit.
+- Archived years stay saved and separate.
+- Admin can archive current year and create the next one.
+- New year copies section/question structure from the previous active year.
+- Responses stay tied to the year they were submitted in.
 
-This is the easy version that works for me.
+Quick example:
 
-1. On the correct server, install:
-   - ASP.NET Core Hosting Bundle (.NET 10 runtime)
-   - IIS role with Windows Authentication enabled
+1. 2026 is active.
+2. Admin archives 2026.
+3. App creates 2027 as active.
+4. 2026 remains archived.
 
-2. (FOR PRODUCTION:) Publish the app from your machine:
-   - Open terminal in `FlourishWellness/FlourishWellness`
-   - Run:
+## Run locally
 
-   ```powershell
-   dotnet publish -c Release -o .\publish
-   ```
-   - You can deploy the ready zip file `publish.zip` in the same folder.
-
-3. Copy the `publish` folder to the server (for example `C:\inetpub\FlourishWellness`).
-
-4. In IIS:
-   - Add a new website pointing to that folder
-   - Use the port/host name you want
-       - Check appsettings.json: the DefaultConnection string must point to the app.db file
-   - App Pool: **No Managed Code**
-
-5. In IIS Authentication for the site:
-   - Enable **Windows Authentication**
-   - Disable **Anonymous Authentication**
-
-6. Make sure your `appsettings.json` connection string is correct on the server.
-
-7. Browse to the site URL and test login.
-
-If the site does not start, reboot IIS with:
+From the repo root:
 
 ```powershell
-iisreset
+cd .\FlourishWellness
+dotnet restore
+dotnet ef database update
+dotnet run
 ```
 
----
-Roles:
-- Employee:  can take/view survey
+Before running, make sure `ConnectionStrings:DefaultConnection` is set in either:
 
-- Manager: take/view survey, view results
+- `appsettings.json`
+- `appsettings.Development.json`
 
-- Admin: full control (users, survey, results, etc)
+Notes:
 
+- App startup will fail if `DefaultConnection` is missing or empty.
+- In Development, fallback authorization is not globally enforced.
+- In Production, authenticated users are required by default.
 
----
+## Admin access notes
 
-New users are added automatically from AD with the Employee role; an admin can change the roles in the admin area for any user. 
+- Local `admin` account is **not** auto-created.
+- `/admin-login` only authenticates an existing `admin` DB user.
+- Windows users are auto-created in `Users` when they sign in.
+- First auto-created Windows user becomes `Admin`; later users default to `Employee`.
 
-When you first log in, you won't be set as admin; to set yourself as admin, go to the admin login page: http://sitename.com/admin-login
+Suggested first setup:
 
-Admin credentials:  admin/admin
+1. Sign in with Windows auth.
+2. Go to Admin -> Manage Users.
+3. Set your AD account to the role you need.
+4. If you want a fallback local admin login, create an `admin` account from the /admin page in the app.
 
-- When you are logged in, go to the Admin tab, and update your account to Admin role in the Manage Users view. Then sign out of admin account; you'll default to your personal admin-level account automatically.
----
-That is basically it.
+## IIS deployment (production)
+
+1. Install on server:
+   - IIS + Windows Authentication
+   - ASP.NET Core Hosting Bundle (.NET 10)
+
+2. Publish from `FlourishWellness`:
+
+```powershell
+dotnet publish -c Release -o .\publish
+```
+
+3. Copy `publish` to server, for example `C:\inetpub\FlourishWellness`.
+
+4. IIS site settings:
+   - Physical path = publish folder
+   - App Pool = No Managed Code
+   - Windows Authentication = Enabled
+   - Anonymous Authentication = Disabled
+
+5. Set the production connection string in deployed `appsettings.json`.  This is done already; if db moves, it will have to be modified.
+
+## Repo layout
+
+- Main app: `FlourishWellness/`
+- DB/data helper scripts: `external_apps/`
