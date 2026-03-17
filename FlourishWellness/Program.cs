@@ -24,7 +24,11 @@ builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
     .AddNegotiate();
 builder.Services.AddAuthorization(options =>
 {
-    options.FallbackPolicy = options.DefaultPolicy;
+    // In Production, require an authenticated user by default so identity comes from AD/Windows auth.
+    if (!builder.Environment.IsDevelopment())
+    {
+        options.FallbackPolicy = options.DefaultPolicy;
+    }
 });
 builder.Services.AddCascadingAuthenticationState();
 
