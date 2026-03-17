@@ -69,6 +69,8 @@ namespace FlourishWellness.Services
 
                 if (user == null)
                 {
+                    var isFirstUser = !await context.Users.AnyAsync();
+
                     // Auto-create AD users with least privilege by default
                     user = new Models.User
                     {
@@ -77,7 +79,7 @@ namespace FlourishWellness.Services
                         SAMAccountName = samAccountName,
                         //ExtensionAttribute10 = string.Empty, // Not currently being used.
                         PasswordHash = string.Empty, // Not used for AD
-                        Role = Models.UserRole.Employee,
+                        Role = isFirstUser ? Models.UserRole.Admin : Models.UserRole.Employee,
                         CreatedAt = DateTime.UtcNow
                     };
                     context.Users.Add(user);
