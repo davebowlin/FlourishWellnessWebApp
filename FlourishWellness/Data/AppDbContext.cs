@@ -32,6 +32,9 @@ namespace FlourishWellness.Data
                 .Ignore(u => u.PasswordHash);
 
             modelBuilder.Entity<SurveyYear>()
+                .ToTable("SurveyYear");
+
+            modelBuilder.Entity<SurveyYear>()
                 .HasIndex(e => e.Year)
                 .IsUnique();
 
@@ -40,15 +43,27 @@ namespace FlourishWellness.Data
                 .WithOne(s => s.SurveyYear)
                 .HasForeignKey(s => s.SurveyYearId);
 
+            modelBuilder.Entity<Section>()
+                .Property(s => s.SurveyYearId).HasColumnName("SurveyYear");
+
             modelBuilder.Entity<Question>()
                 .HasOne(q => q.SurveyYear)
                 .WithMany()
                 .HasForeignKey(q => q.SurveyYearId);
 
+            modelBuilder.Entity<Question>()
+                .Property(q => q.SurveyYearId).HasColumnName("SurveyYear");
+
             modelBuilder.Entity<Response>()
                 .HasOne(r => r.SurveyYear)
                 .WithMany()
                 .HasForeignKey(r => r.SurveyYearId);
+
+            modelBuilder.Entity<Response>()
+                .Property(r => r.SurveyYearId).HasColumnName("SurveyYear");
+
+            modelBuilder.Entity<UserSurveyStatus>()
+                .Property(u => u.SurveyYearId).HasColumnName("SurveyEntityId");
 
             modelBuilder.Entity<UserSurveyStatus>()
                 .HasIndex(x => new { x.UserId, x.SurveyYearId })
