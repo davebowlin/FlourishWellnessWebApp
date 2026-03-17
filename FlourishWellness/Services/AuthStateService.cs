@@ -20,6 +20,8 @@ namespace FlourishWellness.Services
         private List<ADFacilityUser> _adFacilities = new();
         private ADFacilityUser? _selectedFacility;
 
+        private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
+
         public event Action? OnAuthStateChanged;
 
         public AuthStateService(
@@ -62,57 +64,69 @@ namespace FlourishWellness.Services
             if (_isInitialized && CurrentUser != null)
                 return;
 
-            if (!_isInitialized)
+            await _initLock.WaitAsync();
+            try
             {
-                try
-                {
-                    var result = await _sessionStorage.GetAsync<string>("currentUser");
-                    if (result.Success && !string.IsNullOrEmpty(result.Value))
-                    {
-                        CurrentUser = JsonSerializer.Deserialize<User>(result.Value);
-                    }
-                }
-                catch
-                {
-                    // Session storage not available yet
-                }
-            }
+                // Double-check inside the lock — another caller may have finished while we waited
+                if (_isInitialized && CurrentUser != null)
+                    return;
 
-            if (CurrentUser != null)
-            {
-                await RefreshCurrentUserAsync();
-                await LoadADFacilitiesAsync();
-            }
-
-            if (CurrentUser == null)
-            {
-                try
+                if (!_isInitialized)
                 {
-                    var authState = await _authStateProvider.GetAuthenticationStateAsync();
-                    var user = authState.User;
-                    if (user.Identity?.IsAuthenticated == true)
+                    try
                     {
-                        var dbUser = await _authService.AuthenticateWindowsUserAsync(user);
-                        if (dbUser != null)
+                        var result = await _sessionStorage.GetAsync<string>("currentUser");
+                        if (result.Success && !string.IsNullOrEmpty(result.Value))
                         {
-                            await SetUserAsync(dbUser);
-                            await LoadADFacilitiesAsync();
-                        }
-                        else
-                        {
-                            await _logService.LogAsync("AuthenticateWindowsUserAsync returned null", user.Identity.Name ?? "Unknown");
+                            CurrentUser = JsonSerializer.Deserialize<User>(result.Value);
                         }
                     }
+                    catch
+                    {
+                        // Session storage not available yet
+                    }
                 }
-                catch (Exception ex)
-                {
-                    // Log error instead of ignoring
-                    await _logService.LogAsync($"Auto-login error: {ex.Message}", "System");
-                    Console.WriteLine($"Auto-login error: {ex}");
-                }
-            }
 
-            _isInitialized = true;
+                if (CurrentUser != null)
+                {
+                    await RefreshCurrentUserAsync();
+                    await LoadADFacilitiesAsync();
+                }
+
+                if (CurrentUser == null)
+                {
+                    try
+                    {
+                        var authState = await _authStateProvider.GetAuthenticationStateAsync();
+                        var user = authState.User;
+                        if (user.Identity?.IsAuthenticated == true)
+                        {
+                            var dbUser = await _authService.AuthenticateWindowsUserAsync(user);
+                            if (dbUser != null)
+                            {
+                                await SetUserAsync(dbUser);
+                                await LoadADFacilitiesAsync();
+                            }
+                            else
+                            {
+                                await _logService.LogAsync("AuthenticateWindowsUserAsync returned null", user.Identity.Name ?? "Unknown");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error instead of ignoring
+                        await _logService.LogAsync($"Auto-login error: {ex.Message}", "System");
+                        Console.WriteLine($"Auto-login error: {ex}");
+                    }
+                }
+
+                _isInitialized = true;
+            }
+            finally
+            {
+                _initLock.Release();
+            }
         }
 
         public async Task LoadADFacilitiesAsync()
@@ -240,6 +254,7 @@ namespace FlourishWellness.Services
             CurrentUser = null;
             _selectedFacility = null;
             _adFacilities = new List<ADFacilityUser>();
+            _isInitialized = false;
             await _sessionStorage.DeleteAsync("currentUser");
             await _sessionStorage.DeleteAsync("selectedFacility");
             await _sessionStorage.DeleteAsync("selectedCommunityKey");
