@@ -42,13 +42,13 @@ def column_exists(cur, db_type, table_name, column_name):
 
 
 def get_active_survey_entity_id(cur, db_type):
-    if table_exists(cur, db_type, "SurveyEntities"):
-        if column_exists(cur, db_type, "SurveyEntities", "Status"):
+    if table_exists(cur, db_type, "SurveyYear"):
+        if column_exists(cur, db_type, "SurveyYear", "Status"):
             cur.execute(
                 (
-                    "SELECT TOP 1 Id FROM SurveyEntities WHERE Status = ? ORDER BY Id DESC"
+                    "SELECT TOP 1 Id FROM SurveyYear WHERE Status = ? ORDER BY Id DESC"
                     if db_type == "sqlserver"
-                    else "SELECT Id FROM SurveyEntities WHERE Status = ? ORDER BY Id DESC LIMIT 1"
+                    else "SELECT Id FROM SurveyYear WHERE Status = ? ORDER BY Id DESC LIMIT 1"
                 ),
                 (2,),
             )
@@ -57,7 +57,7 @@ def get_active_survey_entity_id(cur, db_type):
                 return active[0]
 
         cur.execute(
-            "SELECT TOP 1 Id FROM SurveyEntities ORDER BY Id DESC"
+            "SELECT TOP 1 Id FROM SurveyYear ORDER BY Id DESC"
             if db_type == "sqlserver"
             else "SELECT Id FROM SurveyEntities ORDER BY Id DESC LIMIT 1"
         )

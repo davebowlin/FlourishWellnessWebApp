@@ -49,7 +49,7 @@
         public int UserId { get; set; }
         public User User { get; set; } = null!;
         public string SAMAccountName { get; set; } = string.Empty;
-        public DateTime CreateDate { get; set; } = DateTime.UtcNow;
+        public DateTime? CreateDate { get; set; }
         public DateTime? Modified { get; set; }
         public int? CommunityKey { get; set; }
     }
