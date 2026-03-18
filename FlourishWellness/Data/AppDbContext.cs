@@ -62,7 +62,7 @@ namespace FlourishWellness.Data
                 .Property(u => u.SurveyYearId).HasColumnName("SurveyYear");
 
             modelBuilder.Entity<UserSurveyStatus>()
-                .HasIndex(x => new { x.UserId, x.SurveyYearId })
+                .HasIndex(x => new { x.UserId, x.SurveyYearId, x.CommunityKey })
                 .IsUnique();
 
             modelBuilder.Entity<Community>()

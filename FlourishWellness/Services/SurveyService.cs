@@ -146,9 +146,10 @@ namespace FlourishWellness.Services
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+            int? ck = int.TryParse(communityKey, out var parsedCk) ? parsedCk : 0;
 
             var existingResponses = await context.Responses
-                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id)
+                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && r.CommunityKey == ck)
                 .ToListAsync();
 
             foreach (var kvp in responses)
@@ -167,7 +168,7 @@ namespace FlourishWellness.Services
                     existing.Answer = kvp.Value;
                     existing.Modified = DateTime.UtcNow;
                     existing.SAMAccountName = samAccountName;
-                    existing.CommunityKey = int.TryParse(communityKey, out var ck) ? ck : (int?)null;
+                    existing.CommunityKey = ck;
                 }
                 else
                 {
@@ -178,7 +179,7 @@ namespace FlourishWellness.Services
                         QuestionId = kvp.Key,
                         Answer = kvp.Value,
                         SAMAccountName = samAccountName,
-                        CommunityKey = int.TryParse(communityKey, out var ck) ? ck : (int?)null,
+                        CommunityKey = ck,
                         CreateDate = DateTime.UtcNow
                     });
                 }
@@ -187,24 +188,24 @@ namespace FlourishWellness.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task<Dictionary<int, string>> GetUserResponsesAsync(int userId)
+        public async Task<Dictionary<int, string>> GetUserResponsesAsync(int userId, int? communityKey)
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
             return await context.Responses
-                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id)
+                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && r.CommunityKey == communityKey)
                 .ToDictionaryAsync(r => r.QuestionId, r => r.Answer);
         }
 
-        public async Task<bool> CompleteSurveyAsync(int userId)
+        public async Task<bool> CompleteSurveyAsync(int userId, int? communityKey)
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
             var totalQuestionCount = await context.Questions.CountAsync(q => q.SurveyYearId == activeYear.Id);
             var answeredCount = await context.Responses
-                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && !string.IsNullOrWhiteSpace(r.Answer))
+                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && r.CommunityKey == communityKey && !string.IsNullOrWhiteSpace(r.Answer))
                 .Select(r => r.QuestionId)
                 .Distinct()
                 .CountAsync();
@@ -214,7 +215,7 @@ namespace FlourishWellness.Services
                 return false;
             }
 
-            var status = await GetOrCreateUserSurveyStatusAsync(context, userId, activeYear.Id);
+            var status = await GetOrCreateUserSurveyStatusAsync(context, userId, activeYear.Id, communityKey);
             status.IsCompleted = true;
             status.UpdatedAt = DateTime.UtcNow;
 
@@ -222,12 +223,12 @@ namespace FlourishWellness.Services
             return true;
         }
 
-        public async Task<bool> IsSurveyCompletedAsync(int userId)
+        public async Task<bool> IsSurveyCompletedAsync(int userId, int? communityKey)
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
             var status = await context.UserSurveyStatuses
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == activeYear.Id);
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == activeYear.Id && s.CommunityKey == communityKey);
 
             return status?.IsCompleted ?? false;
         }
@@ -387,10 +388,10 @@ namespace FlourishWellness.Services
             return activeYear;
         }
 
-        private static async Task<UserSurveyStatus> GetOrCreateUserSurveyStatusAsync(AppDbContext context, int userId, int surveyYearId)
+        private static async Task<UserSurveyStatus> GetOrCreateUserSurveyStatusAsync(AppDbContext context, int userId, int surveyYearId, int? communityKey)
         {
             var status = await context.UserSurveyStatuses
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == surveyYearId);
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == surveyYearId && s.CommunityKey == communityKey);
 
             if (status != null)
             {
@@ -401,6 +402,7 @@ namespace FlourishWellness.Services
             {
                 UserId = userId,
                 SurveyYearId = surveyYearId,
+                CommunityKey = communityKey,
                 IsCompleted = false,
                 UpdatedAt = DateTime.UtcNow
             };

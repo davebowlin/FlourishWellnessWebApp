@@ -76,6 +76,7 @@
         public User User { get; set; } = null!;
         public int SurveyYearId { get; set; }
         public SurveyYear SurveyYear { get; set; } = null!;
+        public int? CommunityKey { get; set; }
         public bool IsCompleted { get; set; }
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }

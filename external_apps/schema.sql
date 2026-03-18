@@ -76,7 +76,7 @@ CREATE TABLE dbo.Responses (
     SAMaccountName NVARCHAR(256) NULL,
     CreateDate     DATETIME2     NULL,
     Modified       DATETIME2     NULL,
-    CommunityKey   INT           NULL,
+    CommunityKey   INT           NULL,       -- 0 = no Community/AD entry; NULL should not occur
     CONSTRAINT PK_Responses PRIMARY KEY (Id),
     CONSTRAINT FK_Responses_Questions_QuestionId FOREIGN KEY (QuestionId) REFERENCES dbo.Questions (Id) ON DELETE CASCADE,
     CONSTRAINT FK_Responses_Users_UserId         FOREIGN KEY (UserId)     REFERENCES dbo.Users     (Id) ON DELETE CASCADE
@@ -92,6 +92,7 @@ CREATE TABLE dbo.UserSurveyStatuses (
     Id          INT       NOT NULL IDENTITY(1,1),
     UserId      INT       NOT NULL,   -- FK → dbo.Users.Id
     SurveyYear  INT       NOT NULL,   -- FK → dbo.SurveyYear.Id
+    CommunityKey INT      NULL,       -- Scopes completion per facility/community; 0 = no Community/AD entry
     IsCompleted BIT       NOT NULL,
     UpdatedAt   DATETIME2 NOT NULL,
     CONSTRAINT PK_UserSurveyStatuses PRIMARY KEY (Id),
@@ -99,7 +100,7 @@ CREATE TABLE dbo.UserSurveyStatuses (
     CONSTRAINT FK_UserSurveyStatuses_SurveyEntities_SurveyEntityId      FOREIGN KEY (SurveyYear) REFERENCES dbo.SurveyYear (Id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IX_UserSurveyStatuses_UserId_SurveyEntityId ON dbo.UserSurveyStatuses (UserId, SurveyYear);
+CREATE UNIQUE INDEX IX_UserSurveyStatuses_UserId_SurveyEntityId ON dbo.UserSurveyStatuses (UserId, SurveyYear, CommunityKey);
 
 -- Local cache of facility/community data sourced from AmericareDW.dbo.FlourishADUsers
 -- Note: The identity PK column is named UserId (not Id) in production.

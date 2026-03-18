@@ -12,6 +12,7 @@
 TEXTFILES/
 web.config
 .gitattributes
+testaccount.txt
 
 
 # User-specific files (MonoDevelop/Xamarin Studio)
