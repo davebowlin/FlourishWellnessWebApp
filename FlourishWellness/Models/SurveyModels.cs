@@ -86,8 +86,9 @@
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string SAMAccountName { get; set; } = string.Empty;
+        // The app no longer uses these AD attributes.
         // public string ExtensionAttribute10 { get; set; } = string.Empty;
-        public string PasswordHash { get; set; } = string.Empty;
+        // public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

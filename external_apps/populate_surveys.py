@@ -81,7 +81,7 @@ def get_or_create_user(cursor, username, full_name):
         return row.Id
 
     cursor.execute(
-        "INSERT INTO Users (Email, FullName, PasswordHash, Role, IsSurveyCompleted, CreatedAt)"
+        "INSERT INTO Users (Email, FullName, Role, CreatedAt)"
         " OUTPUT INSERTED.Id VALUES (?, ?, '', ?, 0, GETUTCDATE())",
         username,
         full_name,

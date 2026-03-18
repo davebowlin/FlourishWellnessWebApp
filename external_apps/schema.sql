@@ -1,90 +1,100 @@
-BEGIN TRANSACTION;
+-- ============================================================
+-- FlourishWellness Production Schema
+-- Server: ASISQLDBPROD
+-- Database: FlourishWellness
+-- Last updated: 2026-03-18
+-- ============================================================
 
-CREATE TABLE IF NOT EXISTS "SurveyEntities" (
-	"Id" INTEGER NOT NULL,
-	"Year" INTEGER NOT NULL,
-	"Status" INTEGER NOT NULL,
-	"CreatedAt" TEXT NOT NULL,
-	CONSTRAINT "PK_SurveyEntities" PRIMARY KEY("Id" AUTOINCREMENT)
+-- Survey years (one row per annual survey cycle)
+CREATE TABLE dbo.SurveyYear (
+    Id          INT            NOT NULL IDENTITY(1,1),
+    Year        INT            NOT NULL,
+    Status      INT            NOT NULL,   -- 1 = Archived, 2 = Active
+    CreatedAt   DATETIME2      NOT NULL,
+    CONSTRAINT PK_SurveyYear PRIMARY KEY (Id),
+    CONSTRAINT UQ_SurveyYear_Year UNIQUE (Year)
 );
 
-CREATE TABLE IF NOT EXISTS "Sections" (
-	"Id" INTEGER NOT NULL,
-	"Name" TEXT NOT NULL,
-	"SurveyYear" INTEGER NOT NULL,
-	"ParentSectionId" INTEGER,
-	CONSTRAINT "PK_Sections" PRIMARY KEY("Id" AUTOINCREMENT),
-	CONSTRAINT "FK_Sections_SurveyEntities_SurveyYear" FOREIGN KEY("SurveyYear") REFERENCES "SurveyEntities"("Id") ON DELETE CASCADE,
-	CONSTRAINT "FK_Sections_Sections_ParentSectionId" FOREIGN KEY("ParentSectionId") REFERENCES "Sections"("Id") ON DELETE RESTRICT
+-- Top-level and nested survey sections
+CREATE TABLE dbo.Sections (
+    Id              INT            NOT NULL IDENTITY(1,1),
+    Name            NVARCHAR(MAX)  NOT NULL,
+    SurveyYear      INT            NOT NULL,   -- FK → dbo.SurveyYear.Id
+    ParentSectionId INT            NULL,        -- NULL = top-level section
+    CONSTRAINT PK_Sections PRIMARY KEY (Id),
+    CONSTRAINT FK_Sections_SurveyYear    FOREIGN KEY (SurveyYear)      REFERENCES dbo.SurveyYear (Id),
+    CONSTRAINT FK_Sections_ParentSection FOREIGN KEY (ParentSectionId) REFERENCES dbo.Sections   (Id)
 );
 
-CREATE TABLE IF NOT EXISTS "Questions" (
-	"Id" INTEGER NOT NULL,
-	"Text" TEXT NOT NULL,
-	"SurveyYear" INTEGER NOT NULL,
-	"SectionId" INTEGER NOT NULL,
-	CONSTRAINT "PK_Questions" PRIMARY KEY("Id" AUTOINCREMENT),
-	CONSTRAINT "FK_Questions_SurveyEntities_SurveyYear" FOREIGN KEY("SurveyYear") REFERENCES "SurveyEntities"("Id") ON DELETE CASCADE,
-	CONSTRAINT "FK_Questions_Sections_SectionId" FOREIGN KEY("SectionId") REFERENCES "Sections"("Id") ON DELETE CASCADE
+CREATE INDEX IX_Sections_SurveyYear      ON dbo.Sections (SurveyYear);
+CREATE INDEX IX_Sections_ParentSectionId ON dbo.Sections (ParentSectionId);
+
+-- Individual survey questions belonging to a section
+CREATE TABLE dbo.Questions (
+    Id         INT            NOT NULL IDENTITY(1,1),
+    Text       NVARCHAR(MAX)  NOT NULL,
+    SurveyYear INT            NOT NULL,   -- FK → dbo.SurveyYear.Id
+    SectionId  INT            NOT NULL,   -- FK → dbo.Sections.Id
+    CONSTRAINT PK_Questions PRIMARY KEY (Id),
+    CONSTRAINT FK_Questions_SurveyYear FOREIGN KEY (SurveyYear) REFERENCES dbo.SurveyYear (Id),
+    CONSTRAINT FK_Questions_Section    FOREIGN KEY (SectionId)  REFERENCES dbo.Sections   (Id)
 );
 
-CREATE TABLE IF NOT EXISTS "Users" (
-	"Id" INTEGER NOT NULL,
-	"Email" TEXT NOT NULL,
-	"FullName" TEXT NOT NULL,
-	"SAMAccountName" TEXT NOT NULL,
-	-- "ExtensionAttribute10" TEXT NOT NULL,
-	-- "PasswordHash" TEXT NOT NULL,
-	"Role" INTEGER NOT NULL,
-	"IsSurveyCompleted" INTEGER NOT NULL DEFAULT 0,
-	"CreatedAt" TEXT NOT NULL,
-	CONSTRAINT "PK_Users" PRIMARY KEY("Id" AUTOINCREMENT)
+CREATE INDEX IX_Questions_SurveyYear ON dbo.Questions (SurveyYear);
+CREATE INDEX IX_Questions_SectionId  ON dbo.Questions (SectionId);
+
+-- Application users (populated automatically on first Windows/AD login)
+CREATE TABLE dbo.Users (
+    Id               INT            NOT NULL IDENTITY(1,1),
+    Email            NVARCHAR(256)  NOT NULL,
+    FullName         NVARCHAR(256)  NOT NULL,
+    SAMAccountName   NVARCHAR(256)  NOT NULL,
+    Role             INT            NOT NULL,   -- 1 = Employee, 2 = Manager, 3 = Admin
+    CreatedAt        DATETIME2      NOT NULL,
+    CONSTRAINT PK_Users PRIMARY KEY (Id),
+    CONSTRAINT UQ_Users_Email UNIQUE (Email)
 );
 
-CREATE TABLE IF NOT EXISTS "Responses" (
-	"Id" INTEGER NOT NULL,
-	"Answer" TEXT NOT NULL,
-	"SurveyYear" INTEGER NOT NULL,
-	"QuestionId" INTEGER NOT NULL,
-	"UserId" INTEGER NOT NULL,
-	CONSTRAINT "PK_Responses" PRIMARY KEY("Id" AUTOINCREMENT),
-	CONSTRAINT "FK_Responses_SurveyEntities_SurveyYear" FOREIGN KEY("SurveyYear") REFERENCES "SurveyEntities"("Id") ON DELETE CASCADE,
-	CONSTRAINT "FK_Responses_Questions_QuestionId" FOREIGN KEY("QuestionId") REFERENCES "Questions"("Id") ON DELETE CASCADE,
-	CONSTRAINT "FK_Responses_Users_UserId" FOREIGN KEY("UserId") REFERENCES "Users"("Id") ON DELETE CASCADE
+-- Per-user survey responses
+CREATE TABLE dbo.Responses (
+    Id             INT            NOT NULL IDENTITY(1,1),
+    Answer         NVARCHAR(MAX)  NOT NULL,
+    SurveyYear     INT            NOT NULL,   -- FK → dbo.SurveyYear.Id
+    QuestionId     INT            NOT NULL,   -- FK → dbo.Questions.Id
+    UserId         INT            NOT NULL,   -- FK → dbo.Users.Id
+    SAMAccountName NVARCHAR(256)  NOT NULL,
+    CreateDate     DATETIME2      NOT NULL,
+    Modified       DATETIME2      NULL,
+    CommunityKey   NVARCHAR(256)  NULL,
+    CONSTRAINT PK_Responses PRIMARY KEY (Id),
+    CONSTRAINT FK_Responses_SurveyYear FOREIGN KEY (SurveyYear) REFERENCES dbo.SurveyYear (Id),
+    CONSTRAINT FK_Responses_Question   FOREIGN KEY (QuestionId) REFERENCES dbo.Questions  (Id),
+    CONSTRAINT FK_Responses_User       FOREIGN KEY (UserId)     REFERENCES dbo.Users      (Id)
 );
 
-CREATE TABLE IF NOT EXISTS "UserSurveyStatuses" (
-	"Id" INTEGER NOT NULL,
-	"UserId" INTEGER NOT NULL,
-	"SurveyYear" INTEGER NOT NULL,
-	"IsCompleted" INTEGER NOT NULL,
-	"UpdatedAt" TEXT NOT NULL,
-	CONSTRAINT "PK_UserSurveyStatuses" PRIMARY KEY("Id" AUTOINCREMENT),
-	CONSTRAINT "FK_UserSurveyStatuses_Users_UserId" FOREIGN KEY("UserId") REFERENCES "Users"("Id") ON DELETE CASCADE,
-	CONSTRAINT "FK_UserSurveyStatuses_SurveyEntities_SurveyYear" FOREIGN KEY("SurveyYear") REFERENCES "SurveyEntities"("Id") ON DELETE CASCADE
+CREATE INDEX IX_Responses_SurveyYear ON dbo.Responses (SurveyYear);
+CREATE INDEX IX_Responses_QuestionId ON dbo.Responses (QuestionId);
+CREATE INDEX IX_Responses_UserId     ON dbo.Responses (UserId);
+
+-- Tracks whether a user has submitted for a given survey year
+-- Note: SurveyEntityId is the physical column name for the SurveyYear FK in this table.
+CREATE TABLE dbo.UserSurveyStatuses (
+    Id             INT       NOT NULL IDENTITY(1,1),
+    UserId         INT       NOT NULL,   -- FK → dbo.Users.Id
+    SurveyEntityId INT       NOT NULL,   -- FK → dbo.SurveyYear.Id
+    IsCompleted    BIT       NOT NULL,
+    UpdatedAt      DATETIME2 NOT NULL,
+    CONSTRAINT PK_UserSurveyStatuses PRIMARY KEY (Id),
+    CONSTRAINT FK_UserSurveyStatuses_User       FOREIGN KEY (UserId)         REFERENCES dbo.Users     (Id),
+    CONSTRAINT FK_UserSurveyStatuses_SurveyYear FOREIGN KEY (SurveyEntityId) REFERENCES dbo.SurveyYear(Id),
+    CONSTRAINT UQ_UserSurveyStatuses_User_Year  UNIQUE (UserId, SurveyEntityId)
 );
 
-CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
-	"MigrationId" TEXT NOT NULL,
-	"ProductVersion" TEXT NOT NULL,
-	CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY("MigrationId")
+-- Local cache of facility/community data sourced from AmericareDW.dbo.FlourishADUsers
+CREATE TABLE dbo.Community (
+    Id             INT            NOT NULL IDENTITY(1,1),
+    SAMAccountName NVARCHAR(256)  NOT NULL,
+    Facility       NVARCHAR(256)  NOT NULL,
+    CommunityKey   NVARCHAR(256)  NULL,
+    CONSTRAINT PK_Community PRIMARY KEY (Id)
 );
-
-CREATE TABLE IF NOT EXISTS "__EFMigrationsLock" (
-	"Id" INTEGER NOT NULL,
-	"Timestamp" TEXT NOT NULL,
-	CONSTRAINT "PK___EFMigrationsLock" PRIMARY KEY("Id")
-);
-
-CREATE INDEX IF NOT EXISTS "IX_Sections_ParentSectionId" ON "Sections" ("ParentSectionId");
-CREATE INDEX IF NOT EXISTS "IX_Sections_SurveyYear" ON "Sections" ("SurveyYear");
-CREATE INDEX IF NOT EXISTS "IX_Questions_SectionId" ON "Questions" ("SectionId");
-CREATE INDEX IF NOT EXISTS "IX_Questions_SurveyYear" ON "Questions" ("SurveyYear");
-CREATE INDEX IF NOT EXISTS "IX_Responses_QuestionId" ON "Responses" ("QuestionId");
-CREATE INDEX IF NOT EXISTS "IX_Responses_UserId" ON "Responses" ("UserId");
-CREATE INDEX IF NOT EXISTS "IX_Responses_SurveyYear" ON "Responses" ("SurveyYear");
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_Email" ON "Users" ("Email");
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_SurveyEntities_Year" ON "SurveyEntities" ("Year");
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_UserSurveyStatuses_UserId_SurveyYear" ON "UserSurveyStatuses" ("UserId", "SurveyYear");
-
-COMMIT;

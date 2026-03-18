@@ -92,10 +92,10 @@ namespace FlourishWellness.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<string>("PasswordHash")
+                    // The PasswordHash column has been removed from the User model and database schema, so it is not included in the production app.
+                    /* b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT"); */
 
                     b.Property<int>("Role")
                         .HasColumnType("INTEGER");
