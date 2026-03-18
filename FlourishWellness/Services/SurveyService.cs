@@ -167,7 +167,7 @@ namespace FlourishWellness.Services
                     existing.Answer = kvp.Value;
                     existing.Modified = DateTime.UtcNow;
                     existing.SAMAccountName = samAccountName;
-                    existing.CommunityKey = string.IsNullOrWhiteSpace(communityKey) ? null : communityKey;
+                    existing.CommunityKey = int.TryParse(communityKey, out var ck) ? ck : (int?)null;
                 }
                 else
                 {
@@ -178,7 +178,7 @@ namespace FlourishWellness.Services
                         QuestionId = kvp.Key,
                         Answer = kvp.Value,
                         SAMAccountName = samAccountName,
-                        CommunityKey = string.IsNullOrWhiteSpace(communityKey) ? null : communityKey,
+                        CommunityKey = int.TryParse(communityKey, out var ck) ? ck : (int?)null,
                         CreateDate = DateTime.UtcNow
                     });
                 }

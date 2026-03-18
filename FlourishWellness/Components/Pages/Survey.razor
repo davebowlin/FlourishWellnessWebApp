@@ -9,9 +9,9 @@
 @inject LogService LogService
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Wellness Survey</PageTitle>
+<PageTitle>FlourishWellness Survey</PageTitle>
 
-<h3>Wellness Assessment Survey</h3>
+<h3>FlourishWellness Assessment Survey</h3>
 
 @if (sections is null)
 {
@@ -19,7 +19,7 @@
 }
 else if (!sections.Any())
 {
-    <p><em>No survey questions available yet. Please contact an administrator.</em></p>
+    <p><em>No survey questions available yet. Please contact an administrator if you feel this is an error.</em></p>
 }
 else
 {

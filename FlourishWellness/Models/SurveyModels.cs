@@ -51,7 +51,7 @@
         public string SAMAccountName { get; set; } = string.Empty;
         public DateTime CreateDate { get; set; } = DateTime.UtcNow;
         public DateTime? Modified { get; set; }
-        public string? CommunityKey { get; set; }
+        public int? CommunityKey { get; set; }
     }
 
     public class ADFacilityUser
@@ -66,7 +66,7 @@
         public int Id { get; set; }
         public string SAMAccountName { get; set; } = string.Empty;
         public string Facility { get; set; } = string.Empty;
-        public string? CommunityKey { get; set; }
+        public int CommunityKey { get; set; }
     }
 
     public class UserSurveyStatus

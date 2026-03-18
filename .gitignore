@@ -11,6 +11,7 @@
 *.sln.docstates
 TEXTFILES/
 web.config
+.gitattributes
 
 
 # User-specific files (MonoDevelop/Xamarin Studio)
@@ -382,3 +383,4 @@ app.db-wal
 app.db
 brand_guide.pdf
 FlourishWellness/Properties/launchSettingsADVersion.json
+.gitattributes
