@@ -202,12 +202,6 @@ namespace FlourishWellness.Services
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
-            var user = await context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                return false;
-            }
-
             var totalQuestionCount = await context.Questions.CountAsync(q => q.SurveyYearId == activeYear.Id);
             var answeredCount = await context.Responses
                 .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && !string.IsNullOrWhiteSpace(r.Answer))
@@ -224,7 +218,6 @@ namespace FlourishWellness.Services
             status.IsCompleted = true;
             status.UpdatedAt = DateTime.UtcNow;
 
-            user.IsSurveyCompleted = true;
             await context.SaveChangesAsync();
             return true;
         }

@@ -32,6 +32,8 @@ class DatabaseBrowserApp:
 
         self._table_lookup: dict[str, tuple[str, str]] = {}
 
+        self.pending_updates = {}
+
         self._build_ui()
         self.load_tables()
 
@@ -45,7 +47,10 @@ class DatabaseBrowserApp:
         ttk.Button(top, text="Load Selected Table", command=self.load_selected_table).pack(
             side=tk.LEFT
         )
-        ttk.Button(top, text="Delete Data", command=on_delete_data).pack(
+        ttk.Button(top, text="Delete Data", command=self.on_delete_data).pack(
+            side=tk.LEFT, padx=(0, 8)
+        )
+        ttk.Button(top, text="Update Data", command=self.on_update_data).pack(
             side=tk.LEFT, padx=(0, 8)
         )
 
@@ -80,6 +85,8 @@ class DatabaseBrowserApp:
         row_vsb.pack(side=tk.RIGHT, fill=tk.Y)
         row_hsb.pack(side=tk.BOTTOM, fill=tk.X)
         self.row_tree.pack(fill=tk.BOTH, expand=True)
+
+        self.row_tree.bind("<Double-1>", self.on_edit_cell)
 
     def load_tables(self):
         try:
@@ -154,6 +161,84 @@ class DatabaseBrowserApp:
             f"{table_label}: {len(rows)} row(s), {len(columns)} column(s)"
         )
 
+    def on_edit_cell(self, event):
+        """Enable editing of a cell in the TreeView."""
+        item_id = self.row_tree.identify_row(event.y)
+        column_id = self.row_tree.identify_column(event.x)
+
+        if not item_id or not column_id:
+            return
+
+        column_index = int(column_id.replace("#", "")) - 1
+        column_name = self.row_tree["columns"][column_index]
+        old_value = self.row_tree.item(item_id, "values")[column_index]
+
+        new_value = simpledialog.askstring("Edit Cell", f"Enter new value for {column_name}:", initialvalue=old_value)
+        if new_value is not None:
+            values = list(self.row_tree.item(item_id, "values"))
+            values[column_index] = new_value
+            self.row_tree.item(item_id, values=values)
+
+            # Store the changes for later update
+            self.pending_updates[item_id] = self.pending_updates.get(item_id, {})
+            self.pending_updates[item_id][column_name] = new_value
+
+    def on_delete_data(self):
+        """Prompt user to delete data from the selected table."""
+        selected = self.table_list.curselection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a table first.")
+            return
+
+        table_label = self.table_list.get(selected[0])
+        table_info = self._table_lookup.get(table_label)
+        if table_info is None:
+            messagebox.showerror("Selection Error", "Unknown table selection.")
+            return
+
+        schema_name, table_name = table_info
+        condition = simpledialog.askstring("Delete Data", f"Enter the condition for deletion in {table_name} (e.g., UserId = 123):")
+        if condition:
+            try:
+                with get_connection() as conn:
+                    cursor = conn.cursor()
+                    sql = f"DELETE FROM {quote_ident(schema_name)}.{quote_ident(table_name)} WHERE {condition}"
+                    cursor.execute(sql)
+                    conn.commit()
+                    messagebox.showinfo("Success", f"Data deleted from {table_name} where {condition}")
+            except Exception as exc:
+                messagebox.showerror("Database Error", str(exc))
+
+
+    def on_update_data(self):
+        """Write pending changes to the database."""
+        selected = self.table_list.curselection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a table first.")
+            return
+
+        table_label = self.table_list.get(selected[0])
+        table_info = self._table_lookup.get(table_label)
+        if table_info is None:
+            messagebox.showerror("Selection Error", "Unknown table selection.")
+            return
+
+        schema_name, table_name = table_info
+        try:
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                for item_id, updates in self.pending_updates.items():
+                    set_clause = ", ".join([f"{col} = ?" for col in updates.keys()])
+                    sql = f"UPDATE {quote_ident(schema_name)}.{quote_ident(table_name)} SET {set_clause} WHERE Id = ?"
+                    params = list(updates.values()) + [self.row_tree.item(item_id, "values")[0]]
+                    cursor.execute(sql, params)
+                conn.commit()
+
+            self.pending_updates.clear()
+            messagebox.showinfo("Success", "All changes have been saved.")
+        except Exception as exc:
+            messagebox.showerror("Database Error", str(exc))
+
 
 def fetch_tables():
     """Fetch the list of tables from the database."""
@@ -193,37 +278,18 @@ def delete_data_from_table(table_name, condition):
         messagebox.showerror("Error", f"Failed to delete data: {e}")
 
 
-def on_table_select(event):
-    """Handle table selection and display data."""
-    selected_table = table_listbox.get(table_listbox.curselection())
-    columns, rows = fetch_table_data(selected_table)
-
-    # Clear the treeview
-    for col in tree.get_children():
-        tree.delete(col)
-
-    # Set columns
-    tree["columns"] = columns
-    tree["show"] = "headings"
-    for col in columns:
-        tree.heading(col, text=col)
-        tree.column(col, width=100)
-
-    # Insert rows
-    for row in rows:
-        tree.insert("", "end", values=row)
-
-
-def on_delete_data():
-    """Prompt user to delete data from the selected table."""
-    selected_table = table_listbox.get(table_listbox.curselection())
-    if not selected_table:
-        messagebox.showwarning("Warning", "Please select a table first.")
-        return
-
-    condition = simpledialog.askstring("Delete Data", f"Enter the condition for deletion in {selected_table} (e.g., UserId = 123):")
-    if condition:
-        delete_data_from_table(selected_table, condition)
+def update_data_in_table(table_name, column_values, condition):
+    """Update data in the specified table based on a condition."""
+    try:
+        with pyodbc.connect(DB_CONN_STR) as conn:
+            cursor = conn.cursor()
+            set_clause = ", ".join([f"{col} = ?" for col in column_values.keys()])
+            sql = f"UPDATE {table_name} SET {set_clause} WHERE {condition}"
+            cursor.execute(sql, list(column_values.values()))
+            conn.commit()
+            messagebox.showinfo("Success", f"Data updated in {table_name} where {condition}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to update data: {e}")
 
 
 if __name__ == "__main__":

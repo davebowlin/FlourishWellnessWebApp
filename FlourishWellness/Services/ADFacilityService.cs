@@ -37,5 +37,75 @@ WHERE SAMAccountName = @samAccountName
 
             return results;
         }
+
+        public async Task<List<ADFacilityUser>> GetOrSyncFacilitiesAsync(string samAccountName)
+        {
+            if (string.IsNullOrWhiteSpace(samAccountName))
+            {
+                return new List<ADFacilityUser>();
+            }
+
+            using var context = await _factory.CreateDbContextAsync();
+            var sam = samAccountName.Trim();
+
+            // Check local Community table first
+            var cached = await context.Community
+                .Where(c => c.SAMAccountName == sam)
+                .ToListAsync();
+
+            // If we have valid (non-empty Facility) rows cached, return them
+            if (cached.Count > 0 && cached.All(c => !string.IsNullOrWhiteSpace(c.Facility)))
+            {
+                return cached.Select(c => new ADFacilityUser
+                {
+                    SAMAccountName = c.SAMAccountName,
+                    Facility = c.Facility,
+                    CommunityKey = c.CommunityKey
+                }).ToList();
+            }
+
+            // No valid cached data — try AmericareDW
+            List<ADFacilityUser> adResults;
+            try
+            {
+                adResults = await GetFacilitiesForSamAccountAsync(sam);
+            }
+            catch
+            {
+                // AmericareDW unreachable — return whatever we have cached (may be empty)
+                return cached.Select(c => new ADFacilityUser
+                {
+                    SAMAccountName = c.SAMAccountName,
+                    Facility = c.Facility,
+                    CommunityKey = c.CommunityKey
+                }).ToList();
+            }
+
+            if (adResults.Count == 0)
+            {
+                return new List<ADFacilityUser>();
+            }
+
+            // Upsert results into dbo.Community
+            foreach (var ad in adResults)
+            {
+                var existing = cached.FirstOrDefault(c =>
+                    string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(c.CommunityKey ?? string.Empty, ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+
+                if (existing == null)
+                {
+                    context.Community.Add(new Community
+                    {
+                        SAMAccountName = sam,
+                        Facility = ad.Facility,
+                        CommunityKey = ad.CommunityKey
+                    });
+                }
+            }
+
+            await context.SaveChangesAsync();
+            return adResults;
+        }
     }
 }

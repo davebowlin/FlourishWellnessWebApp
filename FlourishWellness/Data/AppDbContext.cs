@@ -13,6 +13,7 @@ namespace FlourishWellness.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<SurveyYear> SurveyYears => Set<SurveyYear>();
         public DbSet<UserSurveyStatus> UserSurveyStatuses => Set<UserSurveyStatus>();
+        public DbSet<Community> Community => Set<Community>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -68,6 +69,9 @@ namespace FlourishWellness.Data
             modelBuilder.Entity<UserSurveyStatus>()
                 .HasIndex(x => new { x.UserId, x.SurveyYearId })
                 .IsUnique();
+
+            modelBuilder.Entity<Community>()
+                .ToTable("Community");
         }
     }
 }

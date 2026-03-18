@@ -142,7 +142,7 @@ namespace FlourishWellness.Services
 
             try
             {
-                _adFacilities = await _adFacilityService.GetFacilitiesForSamAccountAsync(CurrentUser.SAMAccountName);
+                _adFacilities = await _adFacilityService.GetOrSyncFacilitiesAsync(CurrentUser.SAMAccountName);
 
                 if (_adFacilities.Count == 1)
                 {
