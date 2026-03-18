@@ -61,6 +61,14 @@
         public string SAMAccountName { get; set; } = string.Empty;
     }
 
+    public class Community
+    {
+        public int Id { get; set; }
+        public string SAMAccountName { get; set; } = string.Empty;
+        public string Facility { get; set; } = string.Empty;
+        public string? CommunityKey { get; set; }
+    }
+
     public class UserSurveyStatus
     {
         public int Id { get; set; }
@@ -81,7 +89,6 @@
         // public string ExtensionAttribute10 { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
-        public bool IsSurveyCompleted { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
