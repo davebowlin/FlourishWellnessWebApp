@@ -1,7 +1,7 @@
-# This is a quick and dirty database browser for FlourishWellness. It is not intended to be a full-featured tool, but rather a simple way to view table contents without needing to use SQL Server Management Studio or other external tools.
-# This shows the tables and column/rows in a simple UI. It is read-only and does not support any editing or filtering. It is intended for quick lookups and debugging purposes only.
-
-
+""" This is a quick and dirty database browser for FlourishWellness. It is not intended to be a full-featured tool, but rather a simple way to view table contents without needing to use SQL Server Management Studio or other external tools.
+    This shows the tables and column/rows in a simple UI. It is read-only and does not support any editing or filtering. It is intended for quick lookups and debugging purposes only.
+    Added basic delete and update functionality for quick data manipulation, but use with caution as there are no safety checks. Double-click any cell to edit its value, then click "Update Data" to save changes. Use "Delete Data" to remove rows based on a condition.
+"""
 import tkinter as tk
 from tkinter import messagebox, ttk, simpledialog
 

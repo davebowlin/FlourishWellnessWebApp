@@ -60,7 +60,7 @@ WHERE SAMAccountName = @samAccountName
                 {
                     SAMAccountName = c.SAMAccountName,
                     Facility = c.Facility,
-                    CommunityKey = c.CommunityKey
+                    CommunityKey = c.CommunityKey.ToString()
                 }).ToList();
             }
 
@@ -77,7 +77,7 @@ WHERE SAMAccountName = @samAccountName
                 {
                     SAMAccountName = c.SAMAccountName,
                     Facility = c.Facility,
-                    CommunityKey = c.CommunityKey
+                    CommunityKey = c.CommunityKey.ToString()
                 }).ToList();
             }
 
@@ -91,7 +91,7 @@ WHERE SAMAccountName = @samAccountName
             {
                 var existing = cached.FirstOrDefault(c =>
                     string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(c.CommunityKey ?? string.Empty, ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
 
                 if (existing == null)
                 {
@@ -99,7 +99,7 @@ WHERE SAMAccountName = @samAccountName
                     {
                         SAMAccountName = sam,
                         Facility = ad.Facility,
-                        CommunityKey = ad.CommunityKey
+                        CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
                     });
                 }
             }

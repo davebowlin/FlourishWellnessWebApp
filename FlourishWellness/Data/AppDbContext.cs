@@ -59,7 +59,7 @@ namespace FlourishWellness.Data
                 .Property(r => r.SurveyYearId).HasColumnName("SurveyYear");
 
             modelBuilder.Entity<UserSurveyStatus>()
-                .Property(u => u.SurveyYearId).HasColumnName("SurveyEntityId");
+                .Property(u => u.SurveyYearId).HasColumnName("SurveyYear");
 
             modelBuilder.Entity<UserSurveyStatus>()
                 .HasIndex(x => new { x.UserId, x.SurveyYearId })
@@ -67,6 +67,9 @@ namespace FlourishWellness.Data
 
             modelBuilder.Entity<Community>()
                 .ToTable("Community");
+
+            modelBuilder.Entity<Community>()
+                .Property(c => c.Id).HasColumnName("UserId");
         }
     }
 }
