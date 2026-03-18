@@ -79,7 +79,7 @@ else
             
             if (AuthStateService.CurrentUser != null)
             {
-                submitted = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id);
+                submitted = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
                 await LogService.LogAsync("Started/Resumed survey", AuthStateService.CurrentUser.Email);
                 await LoadSurvey();
             }
@@ -106,7 +106,7 @@ else
                 // Load existing responses
                 if (AuthStateService.CurrentUser != null)
                 {
-                    var existingResponses = await SurveyService.GetUserResponsesAsync(AuthStateService.CurrentUser.Id);
+                    var existingResponses = await SurveyService.GetUserResponsesAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
                     foreach (var kvp in existingResponses)
                     {
                         responses[kvp.Key] = kvp.Value;
@@ -321,7 +321,7 @@ else
             AuthStateService.SelectedFacility?.CommunityKey);
         
         // Mark complete
-        var completed = await SurveyService.CompleteSurveyAsync(AuthStateService.CurrentUser.Id);
+        var completed = await SurveyService.CompleteSurveyAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
         if (!completed)
         {
             errorMessage = "Unable to submit until every question has a saved answer.";
@@ -348,5 +348,11 @@ else
     private void ResetSurvey()
     {
         // Resetting is not allowed per requirements once submitted. We can change this if needed in the future.
+    }
+
+    private int? GetSelectedCommunityKey()
+    {
+        var ck = AuthStateService.SelectedFacility?.CommunityKey;
+        return int.TryParse(ck, out var val) ? val : 0;
     }
 }

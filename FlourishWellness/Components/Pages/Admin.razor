@@ -190,7 +190,6 @@ else if (activeTab == "users")
                                 <th style="padding: 12px; text-align: left;">Full Name</th>
                                 <th style="padding: 12px; text-align: left;">Role</th>
                                 <th style="padding: 12px; text-align: left;">Created At</th>
-                                <th style="padding: 12px; text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -220,17 +219,6 @@ else if (activeTab == "users")
                                         </div>
                                     </td>
                                     <td style="padding: 12px;">@user.CreatedAt.ToLocalTime().ToString("g")</td>
-                                    <td style="padding: 12px; text-align: right;">
-                                        @if (user.Email != AuthStateService.CurrentUser?.Email)
-                                        {
-                                            <button @onclick="@(() => DeleteUser(user.Id))"
-                                                    style="padding: 4px 10px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
-                                        }
-                                        else
-                                        {
-                                            <span style="color: #5f6062; font-size: 12px; font-style: italic;">(Current User)</span>
-                                        }
-                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -715,7 +703,8 @@ else if (activeTab == "logs")
         }
     }
 
-    private async Task DeleteUser(int userId)
+    // Disabled the DeleteUser method for now; we want to preserve all db data.
+@*     private async Task DeleteUser(int userId)
     {
         var userToDelete = users?.FirstOrDefault(u => u.Id == userId);
         var userEmail = userToDelete?.Email ?? "Unknown";
@@ -725,7 +714,7 @@ else if (activeTab == "logs")
             await LogActionAsync($"Deleted user '{userEmail}'");
             await LoadUsers();
         }
-    }
+    } *@
 
     private UserRole GetPendingRole(int userId)
     {
