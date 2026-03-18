@@ -27,11 +27,6 @@ namespace FlourishWellness.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            // PasswordHash is not present in the production database schema; ignore it so EF Core
-            // does not attempt to SELECT or INSERT this column.
-            modelBuilder.Entity<User>()
-                .Ignore(u => u.PasswordHash);
-
             modelBuilder.Entity<SurveyYear>()
                 .ToTable("SurveyYear");
 

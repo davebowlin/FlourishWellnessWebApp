@@ -95,12 +95,12 @@ namespace FlourishWellness.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsSurveyCompleted")
+                    /* b.Property<bool>("IsSurveyCompleted")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT"); */
 
                     b.Property<int>("Role")
                         .HasColumnType("INTEGER");

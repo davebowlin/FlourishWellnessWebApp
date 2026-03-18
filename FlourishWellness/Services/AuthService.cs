@@ -78,7 +78,7 @@ namespace FlourishWellness.Services
                         FullName = fullName,
                         SAMAccountName = samAccountName,
                         //ExtensionAttribute10 = string.Empty, // Not currently being used.
-                        PasswordHash = string.Empty, // Not used for AD
+                        // = string.Empty, // Not used for AD
                         Role = isFirstUser ? Models.UserRole.Admin : Models.UserRole.Employee,
                         CreatedAt = DateTime.UtcNow
                     };

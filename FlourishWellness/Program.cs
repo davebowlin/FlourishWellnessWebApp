@@ -73,24 +73,3 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-static bool HasColumn(System.Data.Common.DbConnection connection, string tableName, string columnName)
-{
-    using var command = connection.CreateCommand();
-    command.CommandText = @"
-SELECT COUNT(1)
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @tableName AND COLUMN_NAME = @columnName;";
-
-    var tableNameParameter = command.CreateParameter();
-    tableNameParameter.ParameterName = "@tableName";
-    tableNameParameter.Value = tableName;
-    command.Parameters.Add(tableNameParameter);
-
-    var columnNameParameter = command.CreateParameter();
-    columnNameParameter.ParameterName = "@columnName";
-    columnNameParameter.Value = columnName;
-    command.Parameters.Add(columnNameParameter);
-
-    var result = command.ExecuteScalar();
-    return result != null && Convert.ToInt32(result) > 0;
-}
