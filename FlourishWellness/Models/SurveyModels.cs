@@ -48,7 +48,7 @@
         public Question Question { get; set; } = null!;
         public int UserId { get; set; }
         public User User { get; set; } = null!;
-        public string SAMAccountName { get; set; } = string.Empty;
+        public string? SAMAccountName { get; set; }
         public DateTime? CreateDate { get; set; }
         public DateTime? Modified { get; set; }
         public int? CommunityKey { get; set; }
