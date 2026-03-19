@@ -73,49 +73,69 @@ namespace FlourishWellness.Services
                     .Where(c => c.SAMAccountName == sam)
                     .ToListAsync();
 
-                var user = await context.Users.FirstOrDefaultAsync(u => u.SAMAccountName == sam);
-                if (user == null)
-                {
-                    // Dropdown can still work because we return adResults, but we skip the cache write safely.
-                    await _logService.LogAsync($"ADFacilityService: local user not found for SAM '{sam}'. Skipping community sync.", "System");
-                    return adResults;
-                }
+foreach (var ad in adResults)
+{
+    var existing = cached.FirstOrDefault(c =>
+        string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
 
-                var userId = user.Id;
+    if (existing == null)
+    {
+        context.Community.Add(new Community
+        {
+            SAMAccountName = sam,
+            Facility = ad.Facility,
+            CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
+        });
+    }
+}
 
-                foreach (var ad in adResults)
-                {
-                    var existing = cached.FirstOrDefault(c =>
-                        string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+await context.SaveChangesAsync();
 
-                    if (existing == null)
-                    {
-                        context.Community.Add(new Community
-                        {
-                            Id = userId, // AppDbContext maps Community.Id -> dbo.community.UserId (NOT NULL)
-                            SAMAccountName = sam,
-                            Facility = ad.Facility,
-                            CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
-                        });
-                    }
-                }
+//// 2) Recommended change (set Community.Id/UserId before inserting)
+var user = await context.Users.FirstOrDefaultAsync(u => u.SAMAccountName == sam);
+if (user == null)
+{
+    // Dropdown can still work because we return adResults, but we skip the cache write safely.
+    await _logService.LogAsync($"ADFacilityService: local user not found for SAM '{sam}'. Skipping community sync.", "System");
+    return adResults;
+}
+
+var userId = user.Id;
+
+    foreach (var ad in adResults)
+    {
+        var existing = cached.FirstOrDefault(c =>
+            string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+
+        if (existing == null)
+        {
+            context.Community.Add(new Community
+            {
+                Id = userId, // AppDbContext maps Community.Id -> dbo.community.UserId (NOT NULL)
+                SAMAccountName = sam,
+                Facility = ad.Facility,
+                CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
+            });
+        }
+    }
 
                 await context.SaveChangesAsync();
                 return adResults;
             }
 
-                        // AD unreachable or returned no results — fall back to local cache
-                        using var fallbackContext = await _factory.CreateDbContextAsync();
-                        return (await fallbackContext.Community
-                            .Where(c => c.SAMAccountName == sam && c.Facility != "")
-                            .ToListAsync())
-                            .Select(c => new ADFacilityUser
-                            {
-                                SAMAccountName = c.SAMAccountName,
-                                Facility = c.Facility,
-                                CommunityKey = c.CommunityKey.ToString()
-                            }).ToList();
+            // AD unreachable or returned no results — fall back to local cache
+            using var fallbackContext = await _factory.CreateDbContextAsync();
+            return (await fallbackContext.Community
+                .Where(c => c.SAMAccountName == sam && c.Facility != "")
+                .ToListAsync())
+                .Select(c => new ADFacilityUser
+                {
+                    SAMAccountName = c.SAMAccountName,
+                    Facility = c.Facility,
+                    CommunityKey = c.CommunityKey.ToString()
+                }).ToList();
         }
     }
 }
