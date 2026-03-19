@@ -31,7 +31,7 @@ namespace FlourishWellness.Services
                 .SqlQueryRaw<ADFacilityUser>(@"
                     SELECT DISTINCT
                         Facility,
-                        CommunityKey,
+                        CAST(CommunityKey AS NVARCHAR(20)) AS CommunityKey,
                         SAMAccountName
                     FROM [AmericareDW].[dbo].[FlourishADUsers]
                     WHERE SAMAccountName = @samAccountName
