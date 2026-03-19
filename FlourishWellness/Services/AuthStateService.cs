@@ -56,8 +56,7 @@ namespace FlourishWellness.Services
         public bool IsEmployee => CurrentUser?.Role == UserRole.Employee;
         public IReadOnlyList<ADFacilityUser> ADFacilities => _adFacilities;
         public ADFacilityUser? SelectedFacility => _selectedFacility;
-        public bool RequiresFacilitySelection => _adFacilities.Select(x => x.CommunityKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1
-            && _selectedFacility == null;
+        public bool RequiresFacilitySelection => _adFacilities.Count > 1 && _selectedFacility == null;
 
         public async Task InitializeAsync()
         {
@@ -90,7 +89,7 @@ namespace FlourishWellness.Services
                 if (CurrentUser != null)
                 {
                     await RefreshCurrentUserAsync();
-                    await LoadADFacilitiesAsync();
+                    // LoadADFacilitiesAsync is called internally by RefreshCurrentUserAsync
                 }
 
                 if (CurrentUser == null)
