@@ -101,7 +101,7 @@ namespace FlourishWellness.Services
                     }
                 }
 
-                //await context.SaveChangesAsync();
+                await context.SaveChangesAsync();
                 return adResults;
             }
 
