@@ -73,53 +73,33 @@ namespace FlourishWellness.Services
                     .Where(c => c.SAMAccountName == sam)
                     .ToListAsync();
 
-foreach (var ad in adResults)
-{
-    var existing = cached.FirstOrDefault(c =>
-        string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+                var user = await context.Users.FirstOrDefaultAsync(u => u.SAMAccountName == sam);
+                if (user == null)
+                {
+                    // Dropdown can still work because we return adResults, but we skip the cache write safely.
+                    await _logService.LogAsync($"ADFacilityService: local user not found for SAM '{sam}'. Skipping community sync.", "System");
+                    return adResults;
+                }
 
-    if (existing == null)
-    {
-        context.Community.Add(new Community
-        {
-            SAMAccountName = sam,
-            Facility = ad.Facility,
-            CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
-        });
-    }
-}
+                var userId = user.Id;
 
-await context.SaveChangesAsync();
+                foreach (var ad in adResults)
+                {
+                    var existing = cached.FirstOrDefault(c =>
+                        string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
 
-//// 2) Recommended change (set Community.Id/UserId before inserting)
-var user = await context.Users.FirstOrDefaultAsync(u => u.SAMAccountName == sam);
-if (user == null)
-{
-    // Dropdown can still work because we return adResults, but we skip the cache write safely.
-    await _logService.LogAsync($"ADFacilityService: local user not found for SAM '{sam}'. Skipping community sync.", "System");
-    return adResults;
-}
-
-var userId = user.Id;
-
-    foreach (var ad in adResults)
-    {
-        var existing = cached.FirstOrDefault(c =>
-            string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
-
-        if (existing == null)
-        {
-            context.Community.Add(new Community
-            {
-                Id = userId, // AppDbContext maps Community.Id -> dbo.community.UserId (NOT NULL)
-                SAMAccountName = sam,
-                Facility = ad.Facility,
-                CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
-            });
-        }
-    }
+                    if (existing == null)
+                    {
+                        context.Community.Add(new Community
+                        {
+                            Id = userId, // AppDbContext maps Community.Id -> dbo.Community.UserId (FK to Users.Id)
+                            SAMAccountName = sam,
+                            Facility = ad.Facility,
+                            CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
+                        });
+                    }
+                }
 
                 await context.SaveChangesAsync();
                 return adResults;
