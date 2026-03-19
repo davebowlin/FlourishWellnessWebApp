@@ -45,26 +45,10 @@ WHERE SAMAccountName = @samAccountName
                 return new List<ADFacilityUser>();
             }
 
-            using var context = await _factory.CreateDbContextAsync();
             var sam = samAccountName.Trim();
 
-            // Check local Community table first
-            var cached = await context.Community
-                .Where(c => c.SAMAccountName == sam)
-                .ToListAsync();
-
-            // If we have valid (non-empty Facility) rows cached, return them
-            if (cached.Count > 0 && cached.All(c => !string.IsNullOrWhiteSpace(c.Facility)))
-            {
-                return cached.Select(c => new ADFacilityUser
-                {
-                    SAMAccountName = c.SAMAccountName,
-                    Facility = c.Facility,
-                    CommunityKey = c.CommunityKey.ToString()
-                }).ToList();
-            }
-
-            // No valid cached data — try AmericareDW
+            // Always query AD first so newly-added facility assignments are picked up immediately.
+            // The local Community table is only used as a fallback when AD is unreachable.
             List<ADFacilityUser> adResults;
             try
             {
@@ -72,40 +56,49 @@ WHERE SAMAccountName = @samAccountName
             }
             catch
             {
-                // AmericareDW unreachable — return whatever we have cached (may be empty)
-                return cached.Select(c => new ADFacilityUser
+                adResults = new List<ADFacilityUser>();
+            }
+
+            if (adResults.Count > 0)
+            {
+                // Sync any new entries into the local Community cache
+                using var context = await _factory.CreateDbContextAsync();
+                var cached = await context.Community
+                    .Where(c => c.SAMAccountName == sam)
+                    .ToListAsync();
+
+                foreach (var ad in adResults)
+                {
+                    var existing = cached.FirstOrDefault(c =>
+                        string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+
+                    if (existing == null)
+                    {
+                        context.Community.Add(new Community
+                        {
+                            SAMAccountName = sam,
+                            Facility = ad.Facility,
+                            CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
+                        });
+                    }
+                }
+
+                await context.SaveChangesAsync();
+                return adResults;
+            }
+
+            // AD unreachable or returned no results — fall back to local cache
+            using var fallbackContext = await _factory.CreateDbContextAsync();
+            return (await fallbackContext.Community
+                .Where(c => c.SAMAccountName == sam && c.Facility != "")
+                .ToListAsync())
+                .Select(c => new ADFacilityUser
                 {
                     SAMAccountName = c.SAMAccountName,
                     Facility = c.Facility,
                     CommunityKey = c.CommunityKey.ToString()
                 }).ToList();
-            }
-
-            if (adResults.Count == 0)
-            {
-                return new List<ADFacilityUser>();
-            }
-
-            // Upsert results into dbo.Community
-            foreach (var ad in adResults)
-            {
-                var existing = cached.FirstOrDefault(c =>
-                    string.Equals(c.Facility, ad.Facility, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(c.CommunityKey.ToString(), ad.CommunityKey ?? string.Empty, StringComparison.OrdinalIgnoreCase));
-
-                if (existing == null)
-                {
-                    context.Community.Add(new Community
-                    {
-                        SAMAccountName = sam,
-                        Facility = ad.Facility,
-                        CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
-                    });
-                }
-            }
-
-            await context.SaveChangesAsync();
-            return adResults;
         }
     }
 }

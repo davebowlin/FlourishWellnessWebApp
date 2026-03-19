@@ -89,7 +89,6 @@
     protected override async Task OnInitializedAsync()
     {
         await AuthStateService.InitializeAsync();
-        await AuthStateService.RefreshCurrentUserAsync();
 
         if (AuthStateService.SelectedFacility != null)
         {
