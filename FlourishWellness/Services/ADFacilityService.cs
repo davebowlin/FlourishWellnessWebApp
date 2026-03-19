@@ -8,10 +8,12 @@ namespace FlourishWellness.Services
     public class ADFacilityService
     {
         private readonly IDbContextFactory<AppDbContext> _factory;
+        private readonly LogService _logService;
 
-        public ADFacilityService(IDbContextFactory<AppDbContext> factory)
+        public ADFacilityService(IDbContextFactory<AppDbContext> factory, LogService logService)
         {
             _factory = factory;
+            _logService = logService;
         }
 
         public async Task<List<ADFacilityUser>> GetFacilitiesForSamAccountAsync(string samAccountName)
@@ -23,34 +25,20 @@ namespace FlourishWellness.Services
 
             using var context = await _factory.CreateDbContextAsync();
 
-            /* var parameter = new SqlParameter("@samAccountName", samAccountName.Trim());
+            var parameter = new SqlParameter("@samAccountName", samAccountName.Trim());
+
             var results = await context.Database
                 .SqlQueryRaw<ADFacilityUser>(@"
-SELECT DISTINCT
-    Facility,
-    CommunityKey,
-    SAMAccountName
-FROM [AmericareDW].[dbo].[FlourishADUsers]
-WHERE SAMAccountName = parameter
-  AND ISNULL(Facility, '') <> ''", parameter)
+                    SELECT DISTINCT
+                        Facility,
+                        CommunityKey,
+                        SAMAccountName
+                    FROM [AmericareDW].[dbo].[FlourishADUsers]
+                    WHERE SAMAccountName = @samAccountName
+                      AND ISNULL(Facility, '') <> ''",
+                    parameter)
                 .ToListAsync();
-*/
-            var parameter = new SqlParameter("@samAccountName", samAccountName);
 
-var result = await context.Database
-    .SqlQueryRaw<ADFacilityUser>(@"
-        SELECT DISTINCT
-            Facility,
-            CommunityKey,
-            SAMAccountName
-        FROM [AmericareDW].[dbo].[FlourishADUsers]
-        WHERE SAMAccountName = @samAccountName
-          AND ISNULL(Facility, '') <> ''",
-        parameter)
-    .ToListAsync();
-
-            var results = new List<ADFacilityUser>();
-            
             return results;
 
         }
@@ -73,8 +61,7 @@ var result = await context.Database
             }
             catch (Exception ex)
             {
-                // Log the real error so it appears in the log file, then fall through to local cache
-                Console.WriteLine($"[ADFacilityService] GetFacilitiesForSamAccountAsync failed for '{sam}': {ex}");
+                await _logService.LogAsync($"ADFacilityService error for '{sam}': {ex.Message}", "System");
                 adResults = new List<ADFacilityUser>();
             }
 
