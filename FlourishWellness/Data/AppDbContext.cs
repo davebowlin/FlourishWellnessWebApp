@@ -69,7 +69,18 @@ namespace FlourishWellness.Data
                 .ToTable("Community");
 
             modelBuilder.Entity<Community>()
-                .Property(c => c.Id).HasColumnName("UserId");
+                .HasKey(c => new { c.Id, c.CommunityKey });
+
+            modelBuilder.Entity<Community>()
+                .Property(c => c.Id)
+                .HasColumnName("UserId")
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<Community>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.Id)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -93,7 +93,7 @@ namespace FlourishWellness.Services
                     {
                         context.Community.Add(new Community
                         {
-                            Id = userId, // AppDbContext maps Community.Id -> dbo.community.UserId (NOT NULL)
+                            Id = userId, // AppDbContext maps Community.Id -> dbo.Community.UserId (FK to Users.Id)
                             SAMAccountName = sam,
                             Facility = ad.Facility,
                             CommunityKey = int.TryParse(ad.CommunityKey, out var ck) ? ck : 0
@@ -101,21 +101,21 @@ namespace FlourishWellness.Services
                     }
                 }
 
-                //await context.SaveChangesAsync();
+                await context.SaveChangesAsync();
                 return adResults;
             }
 
-                        // AD unreachable or returned no results — fall back to local cache
-                        using var fallbackContext = await _factory.CreateDbContextAsync();
-                        return (await fallbackContext.Community
-                            .Where(c => c.SAMAccountName == sam && c.Facility != "")
-                            .ToListAsync())
-                            .Select(c => new ADFacilityUser
-                            {
-                                SAMAccountName = c.SAMAccountName,
-                                Facility = c.Facility,
-                                CommunityKey = c.CommunityKey.ToString()
-                            }).ToList();
+            // AD unreachable or returned no results — fall back to local cache
+            using var fallbackContext = await _factory.CreateDbContextAsync();
+            return (await fallbackContext.Community
+                .Where(c => c.SAMAccountName == sam && c.Facility != "")
+                .ToListAsync())
+                .Select(c => new ADFacilityUser
+                {
+                    SAMAccountName = c.SAMAccountName,
+                    Facility = c.Facility,
+                    CommunityKey = c.CommunityKey.ToString()
+                }).ToList();
         }
     }
 }

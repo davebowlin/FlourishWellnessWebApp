@@ -103,13 +103,14 @@ CREATE TABLE dbo.UserSurveyStatuses (
 CREATE UNIQUE INDEX IX_UserSurveyStatuses_UserId_SurveyEntityId ON dbo.UserSurveyStatuses (UserId, SurveyYear, CommunityKey);
 
 -- Local cache of facility/community data sourced from AmericareDW.dbo.FlourishADUsers
--- Note: The identity PK column is named UserId (not Id) in production.
---       EF maps Community.Id (C# property) to this column via HasColumnName("UserId").
+-- UserId is a real FK to dbo.Users.Id (NOT an identity column).
+-- Composite PK (UserId, CommunityKey) — one row per user per facility.
 -- CommunityKey is an int matching the int type in AmericareDW.
 CREATE TABLE dbo.Community (
-    UserId         INT           NOT NULL IDENTITY(1,1),
+    UserId         INT           NOT NULL,  -- FK → dbo.Users.Id
     SAMAccountName NVARCHAR(256) NOT NULL,
     Facility       NVARCHAR(256) NOT NULL,
     CommunityKey   INT           NOT NULL,
-    CONSTRAINT PK_Community PRIMARY KEY (UserId)
+    CONSTRAINT PK_Community PRIMARY KEY (UserId, CommunityKey),
+    CONSTRAINT FK_Community_Users FOREIGN KEY (UserId) REFERENCES dbo.Users (Id) ON DELETE CASCADE
 );
