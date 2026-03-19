@@ -54,8 +54,10 @@ WHERE SAMAccountName = @samAccountName
             {
                 adResults = await GetFacilitiesForSamAccountAsync(sam);
             }
-            catch
+            catch (Exception ex)
             {
+                // Log the real error so it appears in the log file, then fall through to local cache
+                Console.WriteLine($"[ADFacilityService] GetFacilitiesForSamAccountAsync failed for '{sam}': {ex}");
                 adResults = new List<ADFacilityUser>();
             }
 
