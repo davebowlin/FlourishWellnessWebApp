@@ -23,7 +23,7 @@ namespace FlourishWellness.Services
 
             using var context = await _factory.CreateDbContextAsync();
 
-            var parameter = new SqlParameter("@samAccountName", samAccountName.Trim());
+            /* var parameter = new SqlParameter("@samAccountName", samAccountName.Trim());
             var results = await context.Database
                 .SqlQueryRaw<ADFacilityUser>(@"
 SELECT DISTINCT
@@ -31,11 +31,28 @@ SELECT DISTINCT
     CommunityKey,
     SAMAccountName
 FROM [AmericareDW].[dbo].[FlourishADUsers]
-WHERE SAMAccountName = @samAccountName
+WHERE SAMAccountName = parameter
   AND ISNULL(Facility, '') <> ''", parameter)
                 .ToListAsync();
+*/
+            var parameter = new SqlParameter("@samAccountName", samAccountName);
 
+var result = await context.Database
+    .SqlQueryRaw<ADFacilityUser>(@"
+        SELECT DISTINCT
+            Facility,
+            CommunityKey,
+            SAMAccountName
+        FROM [AmericareDW].[dbo].[FlourishADUsers]
+        WHERE SAMAccountName = @samAccountName
+          AND ISNULL(Facility, '') <> ''",
+        parameter)
+    .ToListAsync();
+
+            var results = new List<ADFacilityUser>();
+            
             return results;
+
         }
 
         public async Task<List<ADFacilityUser>> GetOrSyncFacilitiesAsync(string samAccountName)
