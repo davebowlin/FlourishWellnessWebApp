@@ -13,7 +13,7 @@ TEXTFILES/
 web.config
 .gitattributes
 testaccount.txt
-
+external_apps/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -385,3 +385,5 @@ app.db
 brand_guide.pdf
 FlourishWellness/Properties/launchSettingsADVersion.json
 .gitattributes
+external_apps/Employee Guide to the FlourishWellness Survey.docx
+external_apps/FlourishWellness Application for Administrators.docx
