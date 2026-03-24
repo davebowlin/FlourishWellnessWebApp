@@ -5,7 +5,7 @@
         public int Id { get; set; }
         public int Year { get; set; }
         public SurveyYearStatus Status { get; set; } = SurveyYearStatus.Active;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = TimeHelper.CstNow;
         public List<Section> Sections { get; set; } = new();
     }
 
@@ -78,7 +78,7 @@
         public SurveyYear SurveyYear { get; set; } = null!;
         public int? CommunityKey { get; set; }
         public bool IsCompleted { get; set; }
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = TimeHelper.CstNow;
     }
 
     public class User
@@ -91,7 +91,7 @@
         // public string ExtensionAttribute10 { get; set; } = string.Empty;
         // public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = TimeHelper.CstNow;
     }
 
     public enum UserRole
@@ -99,5 +99,17 @@
         Employee = 1,
         Manager = 2,
         Admin = 3
+    }
+
+    public class ResponseAuditLog
+    {
+        public int Id { get; set; }
+        public int ResponseId { get; set; }
+        public int QuestionId { get; set; }
+        public int UserId { get; set; }
+        public string SAMAccountName { get; set; } = string.Empty;
+        public string OldAnswer { get; set; } = string.Empty;
+        public string NewAnswer { get; set; } = string.Empty;
+        public DateTime ChangedAt { get; set; }
     }
 }
