@@ -1,12 +1,15 @@
 @using FlourishWellness.Models
 @using FlourishWellness.Services
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
 
 @page "/survey"
 @inject SurveyService SurveyService
 @inject AuthStateService AuthStateService
 @inject NavigationManager NavigationManager
 @inject LogService LogService
+@inject IJSRuntime JSRuntime
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>FlourishWellness Survey</PageTitle>
@@ -23,7 +26,14 @@ else if (!sections.Any())
 }
 else
 {
-    @if (submitted)
+    @if (communityLocked)
+    {
+        <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062;">
+            <h4 style="margin-top: 0;">Survey Locked</h4>
+            <p style="margin: 0;">This survey has already been submitted for your community this year. No further changes are permitted.</p>
+        </div>
+    }
+    else if (submitted)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #d8e2b4; border: 1px solid #9fb456; border-radius: 5px; color: #387c2b;">
             <h4>Survey previously submitted</h4>
@@ -57,18 +67,47 @@ else
         </div>
     }
 
-    <button @onclick="SubmitSurvey"
-            style="padding: 12px 40px; background-color: #196887; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 20px 0; font-weight: 500;">
+    <button @onclick="SubmitSurvey" disabled="@communityLocked"
+            style="padding: 12px 40px; background-color: @(communityLocked ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @(communityLocked ? "not-allowed" : "pointer"); margin: 20px 0; font-weight: 500;">
         Submit Survey
     </button>
+
+    @if (showLeaveDialog)
+    {
+        <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 2000;">
+            <div style="background: white; padding: 30px 36px; border-radius: 8px; max-width: 440px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
+                <h4 style="margin-top: 0; color: #196887;">Unsaved Changes</h4>
+                <p style="color: #5f6062; margin-bottom: 24px;">You have unsaved changes. Would you like to save your progress before leaving?</p>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                    <button @onclick="LeaveDialogSaveAndLeave"
+                            style="padding: 9px 18px; background-color: #387c2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Save &amp; Leave
+                    </button>
+                    <button @onclick="LeaveDialogLeaveWithoutSaving"
+                            style="padding: 9px 18px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Leave Without Saving
+                    </button>
+                    <button @onclick="LeaveDialogCancel"
+                            style="padding: 9px 18px; background-color: #f6f9f7; color: #5f6062; border: 1px solid #d1d3d5; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
     private List<Section>? sections;
     private Dictionary<int, string> responses = new();
     private bool submitted = false;
+    private bool communityLocked = false;
     private string errorMessage = string.Empty;
     private string saveMessage = string.Empty;
+    private bool hasUnsavedChanges = false;
+    private bool showLeaveDialog = false;
+    private string pendingNavigationUrl = string.Empty;
+    private IDisposable? _locationChangingReg;
 
     protected override async Task OnInitializedAsync()
     {
@@ -79,7 +118,8 @@ else
             
             if (AuthStateService.CurrentUser != null)
             {
-                submitted = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
+                communityLocked = await SurveyService.IsCommunitySurveyLockedAsync(GetSelectedCommunityKey());
+                submitted = communityLocked || await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
                 await LogService.LogAsync("Started/Resumed survey", AuthStateService.CurrentUser.Email);
                 await LoadSurvey();
             }
@@ -259,8 +299,12 @@ else
         builder.OpenElement(58, "div");
         builder.AddAttribute(59, "style", "margin-top: 15px; text-align: right;");
         builder.OpenElement(60, "button");
-        builder.AddAttribute(61, "onclick", EventCallback.Factory.Create(this, SaveProgress));
-        builder.AddAttribute(62, "style", "padding: 8px 16px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;");
+        if (!communityLocked)
+        {
+            builder.AddAttribute(61, "onclick", EventCallback.Factory.Create(this, SaveProgress));
+        }
+        builder.AddAttribute(61, "disabled", communityLocked);
+        builder.AddAttribute(62, "style", $"padding: 8px 16px; background-color: {(communityLocked ? "#b0b0b0" : "#5f6062")}; color: white; border: none; border-radius: 4px; cursor: {(communityLocked ? "not-allowed" : "pointer")};");
         builder.AddContent(63, "Save Progress");
         builder.CloseElement();
         builder.CloseElement();
@@ -271,11 +315,17 @@ else
         responses[questionId] = value;
         errorMessage = string.Empty; // Clear error on change
         saveMessage = string.Empty;
+        if (!hasUnsavedChanges)
+        {
+            hasUnsavedChanges = true;
+            _ = UpdateBeforeUnloadAsync(true);
+        }
     }
 
     private async Task SaveProgress()
     {
         if (AuthStateService.CurrentUser == null) return;
+        if (communityLocked) return;
         if (AuthStateService.RequiresFacilitySelection)
         {
             errorMessage = "Please select your facility first from the home page.";
@@ -287,6 +337,8 @@ else
             responses,
             AuthStateService.CurrentUser.SAMAccountName,
             AuthStateService.SelectedFacility?.CommunityKey);
+        hasUnsavedChanges = false;
+        await UpdateBeforeUnloadAsync(false);
         saveMessage = "Progress saved successfully!";
         await LogService.LogAsync("Saved survey progress", AuthStateService.CurrentUser.Email);
         
@@ -297,6 +349,7 @@ else
     private async Task SubmitSurvey()
     {
         if (AuthStateService.CurrentUser == null) return;
+        if (communityLocked) return;
         if (AuthStateService.RequiresFacilitySelection)
         {
             errorMessage = "Please select your facility first from the home page.";
@@ -319,7 +372,9 @@ else
             responses,
             AuthStateService.CurrentUser.SAMAccountName,
             AuthStateService.SelectedFacility?.CommunityKey);
-        
+        hasUnsavedChanges = false;
+        await UpdateBeforeUnloadAsync(false);
+
         // Mark complete
         var completed = await SurveyService.CompleteSurveyAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
         if (!completed)
@@ -354,5 +409,71 @@ else
     {
         var ck = AuthStateService.SelectedFacility?.CommunityKey;
         return int.TryParse(ck, out var val) ? val : 0;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _locationChangingReg = NavigationManager.RegisterLocationChangingHandler(OnLocationChanging);
+        }
+    }
+
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        if (!hasUnsavedChanges) return;
+
+        // Prevent navigation immediately and show in-page dialog
+        context.PreventNavigation();
+        pendingNavigationUrl = context.TargetLocation;
+        showLeaveDialog = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LeaveDialogSaveAndLeave()
+    {
+        showLeaveDialog = false;
+        if (AuthStateService.CurrentUser != null && !AuthStateService.RequiresFacilitySelection && !communityLocked)
+        {
+            await SurveyService.SaveUserResponsesAsync(
+                AuthStateService.CurrentUser.Id,
+                responses,
+                AuthStateService.CurrentUser.SAMAccountName,
+                AuthStateService.SelectedFacility?.CommunityKey);
+            await LogService.LogAsync("Saved survey progress before navigation", AuthStateService.CurrentUser.Email);
+        }
+        hasUnsavedChanges = false;
+        await UpdateBeforeUnloadAsync(false);
+        NavigationManager.NavigateTo(pendingNavigationUrl);
+    }
+
+    private async Task LeaveDialogLeaveWithoutSaving()
+    {
+        showLeaveDialog = false;
+        hasUnsavedChanges = false;
+        await UpdateBeforeUnloadAsync(false);
+        NavigationManager.NavigateTo(pendingNavigationUrl);
+    }
+
+    private void LeaveDialogCancel()
+    {
+        showLeaveDialog = false;
+        pendingNavigationUrl = string.Empty;
+    }
+
+    private async Task UpdateBeforeUnloadAsync(bool enable)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync(enable ? "flourish.enableLeaveWarning" : "flourish.disableLeaveWarning");
+        }
+        catch { /* ignore JS interop errors during prerender or dispose */ }
+    }
+
+    public void Dispose()
+    {
+        _locationChangingReg?.Dispose();
+        // Best-effort cleanup of the beforeunload handler when the component is torn down
+        _ = UpdateBeforeUnloadAsync(false);
     }
 }

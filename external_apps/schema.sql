@@ -25,7 +25,7 @@ CREATE UNIQUE INDEX IX_SurveyEntities_Year ON dbo.SurveyYear (Year);
 CREATE TABLE dbo.Sections (
     Id              INT           NOT NULL IDENTITY(1,1),
     Name            NVARCHAR(255) NOT NULL,
-    SurveyYear      INT           NOT NULL DEFAULT ((0)),  -- FK → dbo.SurveyYear.Id
+    SurveyYear      INT           NOT NULL DEFAULT ((0)),  -- FK → dbo.SurveyYear.Year
     ParentSectionId INT           NULL,                    -- NULL = top-level section
     CONSTRAINT PK_Sections PRIMARY KEY (Id),
     CONSTRAINT FK_Sections_Sections_ParentSectionId FOREIGN KEY (ParentSectionId) REFERENCES dbo.Sections (Id)
@@ -40,7 +40,7 @@ CREATE TABLE dbo.Questions (
     Id        INT          NOT NULL IDENTITY(1,1),
     Text      NVARCHAR(MAX) NOT NULL,
     SectionId INT          NOT NULL,   -- FK → dbo.Sections.Id
-    SurveyYear INT         NOT NULL DEFAULT ((0)),  -- FK → dbo.SurveyYear.Id
+    SurveyYear INT         NOT NULL DEFAULT ((0)),  -- FK → dbo.SurveyYear.Year
     CONSTRAINT PK_Questions PRIMARY KEY (Id),
     CONSTRAINT FK_Questions_Sections_SectionId FOREIGN KEY (SectionId) REFERENCES dbo.Sections (Id) ON DELETE CASCADE
 );
@@ -72,7 +72,7 @@ CREATE TABLE dbo.Responses (
     Answer         NVARCHAR(MAX) NOT NULL,
     QuestionId     INT           NOT NULL,   -- FK → dbo.Questions.Id
     UserId         INT           NOT NULL,   -- FK → dbo.Users.Id
-    SurveyYear     INT           NOT NULL DEFAULT ((0)),  -- FK → dbo.SurveyYear.Id
+    SurveyYear     INT           NOT NULL DEFAULT ((0)),  -- FK → dbo.SurveyYear.Year
     SAMaccountName NVARCHAR(256) NULL,
     CreateDate     DATETIME2     NULL,
     Modified       DATETIME2     NULL,
@@ -91,13 +91,13 @@ CREATE INDEX IX_Responses_SurveyEntityId ON dbo.Responses (SurveyYear);
 CREATE TABLE dbo.UserSurveyStatuses (
     Id          INT       NOT NULL IDENTITY(1,1),
     UserId      INT       NOT NULL,   -- FK → dbo.Users.Id
-    SurveyYear  INT       NOT NULL,   -- FK → dbo.SurveyYear.Id
+    SurveyYear  INT       NOT NULL,   -- FK → dbo.SurveyYear.Year
     CommunityKey INT      NULL,       -- Scopes completion per facility/community; 0 = no Community/AD entry
     IsCompleted BIT       NOT NULL,
     UpdatedAt   DATETIME2 NOT NULL,
     CONSTRAINT PK_UserSurveyStatuses PRIMARY KEY (Id),
     CONSTRAINT FK_UserSurveyStatuses_Users_UserId                       FOREIGN KEY (UserId)    REFERENCES dbo.Users     (Id) ON DELETE CASCADE,
-    CONSTRAINT FK_UserSurveyStatuses_SurveyEntities_SurveyEntityId      FOREIGN KEY (SurveyYear) REFERENCES dbo.SurveyYear (Id) ON DELETE CASCADE
+    CONSTRAINT FK_UserSurveyStatuses_SurveyEntities_SurveyEntityId      FOREIGN KEY (SurveyYear) REFERENCES dbo.SurveyYear (Year) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX IX_UserSurveyStatuses_UserId_SurveyEntityId ON dbo.UserSurveyStatuses (UserId, SurveyYear, CommunityKey);

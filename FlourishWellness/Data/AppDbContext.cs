@@ -37,6 +37,7 @@ namespace FlourishWellness.Data
             modelBuilder.Entity<SurveyYear>()
                 .HasMany(e => e.Sections)
                 .WithOne(s => s.SurveyYear)
+                .HasPrincipalKey(e => e.Year)
                 .HasForeignKey(s => s.SurveyYearId);
 
             modelBuilder.Entity<Section>()
@@ -45,6 +46,7 @@ namespace FlourishWellness.Data
             modelBuilder.Entity<Question>()
                 .HasOne(q => q.SurveyYear)
                 .WithMany()
+                .HasPrincipalKey(e => e.Year)
                 .HasForeignKey(q => q.SurveyYearId);
 
             modelBuilder.Entity<Question>()
@@ -53,10 +55,17 @@ namespace FlourishWellness.Data
             modelBuilder.Entity<Response>()
                 .HasOne(r => r.SurveyYear)
                 .WithMany()
+                .HasPrincipalKey(e => e.Year)
                 .HasForeignKey(r => r.SurveyYearId);
 
             modelBuilder.Entity<Response>()
                 .Property(r => r.SurveyYearId).HasColumnName("SurveyYear");
+
+            modelBuilder.Entity<UserSurveyStatus>()
+                .HasOne(u => u.SurveyYear)
+                .WithMany()
+                .HasPrincipalKey(e => e.Year)
+                .HasForeignKey(u => u.SurveyYearId);
 
             modelBuilder.Entity<UserSurveyStatus>()
                 .Property(u => u.SurveyYearId).HasColumnName("SurveyYear");

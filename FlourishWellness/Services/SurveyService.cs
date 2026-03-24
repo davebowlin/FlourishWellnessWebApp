@@ -52,7 +52,7 @@ namespace FlourishWellness.Services
             context.SurveyYears.Add(nextYearEntity);
             await context.SaveChangesAsync();
 
-            await CloneSectionsAndQuestionsAsync(context, activeYear.Id, nextYearEntity.Id);
+            await CloneSectionsAndQuestionsAsync(context, activeYear.Year, nextYearEntity.Year);
             await context.SaveChangesAsync();
 
             return nextYearEntity;
@@ -86,7 +86,7 @@ namespace FlourishWellness.Services
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
             return await context.Sections
-                .Where(s => s.ParentSectionId == null && s.SurveyYearId == activeYear.Id)
+                .Where(s => s.ParentSectionId == null && s.SurveyYearId == activeYear.Year)
                 .Include(s => s.Questions)
                 .Include(s => s.Subsections)
                 .ThenInclude(sub => sub.Questions)
@@ -99,7 +99,7 @@ namespace FlourishWellness.Services
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
             return await context.Sections
-                .Where(s => s.ParentSectionId == null && s.SurveyYearId == activeYear.Id)
+                .Where(s => s.ParentSectionId == null && s.SurveyYearId == activeYear.Year)
                 .Include(s => s.Questions)
                     .ThenInclude(q => q.Responses)
                         .ThenInclude(r => r.User)
@@ -115,7 +115,7 @@ namespace FlourishWellness.Services
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
-            sec.SurveyYearId = activeYear.Id;
+            sec.SurveyYearId = activeYear.Year;
             context.Sections.Add(sec);
             await context.SaveChangesAsync();
         }
@@ -148,15 +148,23 @@ namespace FlourishWellness.Services
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
             int? ck = int.TryParse(communityKey, out var parsedCk) ? parsedCk : 0;
 
+            // Enforce one survey per community per year
+            var communityLocked = await context.UserSurveyStatuses
+                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == ck && s.IsCompleted);
+            if (communityLocked)
+            {
+                throw new InvalidOperationException("This survey has already been submitted for your community this year and cannot be modified.");
+            }
+
             var existingResponses = await context.Responses
-                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && r.CommunityKey == ck)
+                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Year && r.CommunityKey == ck)
                 .ToListAsync();
 
             foreach (var kvp in responses)
             {
                 if (string.IsNullOrWhiteSpace(kvp.Value)) continue;
 
-                var question = await context.Questions.FirstOrDefaultAsync(q => q.Id == kvp.Key && q.SurveyYearId == activeYear.Id);
+                var question = await context.Questions.FirstOrDefaultAsync(q => q.Id == kvp.Key && q.SurveyYearId == activeYear.Year);
                 if (question == null)
                 {
                     continue;
@@ -175,7 +183,7 @@ namespace FlourishWellness.Services
                     context.Responses.Add(new Response
                     {
                         UserId = userId,
-                        SurveyYearId = activeYear.Id,
+                        SurveyYearId = activeYear.Year,
                         QuestionId = kvp.Key,
                         Answer = kvp.Value,
                         SAMAccountName = samAccountName,
@@ -194,7 +202,7 @@ namespace FlourishWellness.Services
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
             return await context.Responses
-                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && r.CommunityKey == communityKey)
+                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Year && r.CommunityKey == communityKey)
                 .ToDictionaryAsync(r => r.QuestionId, r => r.Answer);
         }
 
@@ -203,9 +211,17 @@ namespace FlourishWellness.Services
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
-            var totalQuestionCount = await context.Questions.CountAsync(q => q.SurveyYearId == activeYear.Id);
+            // Enforce one survey per community per year
+            var alreadyLocked = await context.UserSurveyStatuses
+                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey && s.IsCompleted);
+            if (alreadyLocked)
+            {
+                return false;
+            }
+
+            var totalQuestionCount = await context.Questions.CountAsync(q => q.SurveyYearId == activeYear.Year);
             var answeredCount = await context.Responses
-                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Id && r.CommunityKey == communityKey && !string.IsNullOrWhiteSpace(r.Answer))
+                .Where(r => r.UserId == userId && r.SurveyYearId == activeYear.Year && r.CommunityKey == communityKey && !string.IsNullOrWhiteSpace(r.Answer))
                 .Select(r => r.QuestionId)
                 .Distinct()
                 .CountAsync();
@@ -215,7 +231,7 @@ namespace FlourishWellness.Services
                 return false;
             }
 
-            var status = await GetOrCreateUserSurveyStatusAsync(context, userId, activeYear.Id, communityKey);
+            var status = await GetOrCreateUserSurveyStatusAsync(context, userId, activeYear.Year, communityKey);
             status.IsCompleted = true;
             status.UpdatedAt = DateTime.UtcNow;
 
@@ -228,16 +244,24 @@ namespace FlourishWellness.Services
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
             var status = await context.UserSurveyStatuses
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == activeYear.Id && s.CommunityKey == communityKey);
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey);
 
             return status?.IsCompleted ?? false;
+        }
+
+        public async Task<bool> IsCommunitySurveyLockedAsync(int? communityKey)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+            return await context.UserSurveyStatuses
+                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey && s.IsCompleted);
         }
 
         public async Task UpdateSectionAsync(int sectionId, string newName)
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
-            var sec = await context.Sections.FirstOrDefaultAsync(s => s.Id == sectionId && s.SurveyYearId == activeYear.Id);
+            var sec = await context.Sections.FirstOrDefaultAsync(s => s.Id == sectionId && s.SurveyYearId == activeYear.Year);
             if (sec != null)
             {
                 sec.Name = newName;
@@ -249,7 +273,7 @@ namespace FlourishWellness.Services
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
-            var question = await context.Questions.FirstOrDefaultAsync(q => q.Id == questionId && q.SurveyYearId == activeYear.Id);
+            var question = await context.Questions.FirstOrDefaultAsync(q => q.Id == questionId && q.SurveyYearId == activeYear.Year);
             if (question != null)
             {
                 question.Text = newText;
@@ -266,7 +290,7 @@ namespace FlourishWellness.Services
                 .Include(s => s.Questions)
                     .ThenInclude(q => q.Responses)
                 .Include(s => s.Subsections)
-                .FirstOrDefaultAsync(s => s.Id == sectionId && s.SurveyYearId == activeYear.Id);
+                .FirstOrDefaultAsync(s => s.Id == sectionId && s.SurveyYearId == activeYear.Year);
 
             if (sec != null)
             {
@@ -282,7 +306,7 @@ namespace FlourishWellness.Services
 
             var question = await context.Questions
                 .Include(q => q.Responses)
-                .FirstOrDefaultAsync(q => q.Id == questionId && q.SurveyYearId == activeYear.Id);
+                .FirstOrDefaultAsync(q => q.Id == questionId && q.SurveyYearId == activeYear.Year);
 
             if (question != null)
             {
@@ -326,7 +350,7 @@ namespace FlourishWellness.Services
             {
                 // Fallback: export responses for the active survey year to a JSON file
                 var responses = await context.Responses
-                    .Where(r => r.SurveyYearId == activeYear.Id)
+                    .Where(r => r.SurveyYearId == activeYear.Year)
                     .ToListAsync();
 
                 var backupFileName = $"responses-backup-{DateTime.Now:yyyyMMdd-HHmms}.json";
@@ -336,13 +360,13 @@ namespace FlourishWellness.Services
 
             // Delete responses for the active survey year
             var allResponses = await context.Responses
-                .Where(r => r.SurveyYearId == activeYear.Id)
+                .Where(r => r.SurveyYearId == activeYear.Year)
                 .ToListAsync();
             context.Responses.RemoveRange(allResponses);
 
             // Reset user survey statuses for the active survey year
             var statusRows = await context.UserSurveyStatuses
-                .Where(s => s.SurveyYearId == activeYear.Id)
+                .Where(s => s.SurveyYearId == activeYear.Year)
                 .ToListAsync();
 
             foreach (var status in statusRows)

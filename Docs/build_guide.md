@@ -4,13 +4,13 @@
 
 ## To do:
  - Facility executive directors assign survey sections to employees to complete
- - Add survey ID for each Facility
- - One survey per facility per year
- - Notify user before leaving with unsaved changes
  - ??? Possible email notifications
- - Change SurveyYear column to use actual year
 
 
+ - (DONE) Notify user before leaving with unsaved changes
+ - (DONE) Change SurveyYear column to use actual year
+ - (DONE) Add survey ID for each Facility (we already do this with CommunityKey and SurveyYear)
+ - (DONE) One survey per facility per year
 
 
  ## Notes
