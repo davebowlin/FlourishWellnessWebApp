@@ -64,14 +64,17 @@
     line-height: 1; /* Fix vertical alignment issues */
 }
 
-    .nav-brand img {
-        height: 38px;
+    .nav-brand .nav-logo {
+        height: 44px;
         width: auto;
         max-width: 100%;
         margin-right: 12px;
         object-fit: contain;
         flex-shrink: 0;
         display: block; /* Remove inline spacing */
+        background-color: #fff;
+        padding: 0.25rem 0.4rem;
+        border-radius: 6px;
     }
 
 .navbar-toggler {
