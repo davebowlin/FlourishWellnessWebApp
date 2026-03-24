@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FlourishWellness.Models;
 
 namespace FlourishWellness.Services
 {
@@ -25,8 +26,9 @@ namespace FlourishWellness.Services
             await _semaphore.WaitAsync();
             try
             {
-                var fileName = Path.Combine(_logDirectory, $"log-{DateTime.Now:yyyy-MM-dd}.txt");
-                var logEntry = $"[{DateTime.Now:HH:mm:ss}] User: {userEmail} - Action: {action}{Environment.NewLine}";
+                var now = TimeHelper.CstNow;
+                var fileName = Path.Combine(_logDirectory, $"log-{now:yyyy-MM-dd}.txt");
+                var logEntry = $"[{now:HH:mm:ss}] User: {userEmail} - Action: {action}{Environment.NewLine}";
                 await File.AppendAllTextAsync(fileName, logEntry);
             }
             finally
