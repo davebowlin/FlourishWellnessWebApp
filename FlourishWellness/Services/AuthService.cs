@@ -80,7 +80,7 @@ namespace FlourishWellness.Services
                         //ExtensionAttribute10 = string.Empty, // Not currently being used.
                         // = string.Empty, // Not used for AD
                         Role = isFirstUser ? Models.UserRole.Admin : Models.UserRole.Employee,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = Models.TimeHelper.CstNow
                     };
                     context.Users.Add(user);
                 }
@@ -125,7 +125,7 @@ namespace FlourishWellness.Services
                 // ExtensionAttribute10 = string.Empty,
                 // PasswordHash = string.Empty, // No password for AD users
                 Role = role,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = TimeHelper.CstNow
             };
 
             context.Users.Add(newUser);

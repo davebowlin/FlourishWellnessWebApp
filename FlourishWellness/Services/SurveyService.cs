@@ -47,7 +47,7 @@ namespace FlourishWellness.Services
             {
                 Year = nextYear,
                 Status = SurveyYearStatus.Active,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = TimeHelper.CstNow
             };
             context.SurveyYears.Add(nextYearEntity);
             await context.SaveChangesAsync();
@@ -173,8 +173,21 @@ namespace FlourishWellness.Services
                 var existing = existingResponses.FirstOrDefault(r => r.QuestionId == kvp.Key);
                 if (existing != null)
                 {
+                    if (existing.Answer != kvp.Value)
+                    {
+                        context.ResponseAuditLogs.Add(new ResponseAuditLog
+                        {
+                            ResponseId = existing.Id,
+                            QuestionId = existing.QuestionId,
+                            UserId = userId,
+                            SAMAccountName = samAccountName,
+                            OldAnswer = existing.Answer,
+                            NewAnswer = kvp.Value,
+                            ChangedAt = TimeHelper.CstNow
+                        });
+                    }
                     existing.Answer = kvp.Value;
-                    existing.Modified = DateTime.UtcNow;
+                    existing.Modified = TimeHelper.CstNow;
                     existing.SAMAccountName = samAccountName;
                     existing.CommunityKey = ck;
                 }
@@ -188,7 +201,7 @@ namespace FlourishWellness.Services
                         Answer = kvp.Value,
                         SAMAccountName = samAccountName,
                         CommunityKey = ck,
-                        CreateDate = DateTime.UtcNow
+                        CreateDate = TimeHelper.CstNow
                     });
                 }
             }
@@ -233,7 +246,7 @@ namespace FlourishWellness.Services
 
             var status = await GetOrCreateUserSurveyStatusAsync(context, userId, activeYear.Year, communityKey);
             status.IsCompleted = true;
-            status.UpdatedAt = DateTime.UtcNow;
+            status.UpdatedAt = TimeHelper.CstNow;
 
             await context.SaveChangesAsync();
             return true;
@@ -372,7 +385,7 @@ namespace FlourishWellness.Services
             foreach (var status in statusRows)
             {
                 status.IsCompleted = false;
-                status.UpdatedAt = DateTime.UtcNow;
+                status.UpdatedAt = TimeHelper.CstNow;
             }
 
             await context.SaveChangesAsync();
@@ -391,7 +404,7 @@ namespace FlourishWellness.Services
                 return activeYear;
             }
 
-            var currentYear = DateTime.UtcNow.Year;
+            var currentYear = TimeHelper.CstNow.Year;
             var existingForYear = await context.SurveyYears.FirstOrDefaultAsync(e => e.Year == currentYear);
             if (existingForYear != null)
             {
@@ -404,7 +417,7 @@ namespace FlourishWellness.Services
             {
                 Year = currentYear,
                 Status = SurveyYearStatus.Active,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = TimeHelper.CstNow
             };
 
             context.SurveyYears.Add(activeYear);
@@ -428,7 +441,7 @@ namespace FlourishWellness.Services
                 SurveyYearId = surveyYearId,
                 CommunityKey = communityKey,
                 IsCompleted = false,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = TimeHelper.CstNow
             };
 
             context.UserSurveyStatuses.Add(status);

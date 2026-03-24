@@ -11,6 +11,7 @@
  - (DONE) Change SurveyYear column to use actual year
  - (DONE) Add survey ID for each Facility (we already do this with CommunityKey and SurveyYear)
  - (DONE) One survey per facility per year
+ - (DONE) Times/dates are now based on CST throughout
 
 
  ## Notes
