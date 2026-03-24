@@ -14,7 +14,12 @@
 
 <PageTitle>FlourishWellness Survey</PageTitle>
 
-<h3>FlourishWellness Assessment Survey</h3>
+<div style="text-align: center; padding: 1rem 0 0.75rem; border-bottom: 2px solid var(--fw-primary-light); margin-bottom: 1.5rem;">
+    <h2 style="margin: 0; font-family: 'Montserrat', Verdana, sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--fw-primary); letter-spacing: 0.01em;">
+        @(GetSelectedCommunityKey() == 0 ? "N/A" : (AuthStateService.SelectedFacility?.Facility ?? "N/A"))
+        <span style="color: var(--fw-text); font-weight: 400;">&nbsp;&mdash;&nbsp;@(surveyYear?.Year.ToString() ?? "...")</span>
+    </h2>
+</div>
 
 @if (sections is null)
 {
@@ -22,29 +27,29 @@
 }
 else if (!sections.Any())
 {
-    <p><em>No survey questions available yet. Please contact an administrator if you feel this is an error.</em></p>
+    <p><em>This area is not available to you right now.</em></p>
 }
 else
 {
     @if (communityLocked)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062;">
-            <h4 style="margin-top: 0;">Survey Locked</h4>
-            <p style="margin: 0;">This survey has already been submitted for your community this year. No further changes are permitted.</p>
+            <h4 style="margin-top: 0;">Survey Year Archived</h4>
+            <p style="margin: 0;">This survey year has been archived by an administrator. No further changes are permitted.</p>
         </div>
     }
     else if (submitted)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #d8e2b4; border: 1px solid #9fb456; border-radius: 5px; color: #387c2b;">
             <h4>Survey previously submitted</h4>
-            <p>Your saved responses are loaded below. You can continue editing and re-submit.</p>
+            <p>Your saved responses are below. You can continue editing and resubmit.</p>
         </div>
     }
 
     @if (AuthStateService.RequiresFacilitySelection)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062; font-size: 18px; font-weight: 600;">
-            Multiple AD facilities were found for your account. Please return to the home page and choose your facility before saving or submitting.
+            Your account is assigned to multiple facilities. Please return to the home page and choose your facility before saving or submitting.
         </div>
     }
 
@@ -102,6 +107,7 @@ else
     private Dictionary<int, string> responses = new();
     private bool submitted = false;
     private bool communityLocked = false;
+    private SurveyYear? surveyYear;
     private string errorMessage = string.Empty;
     private string saveMessage = string.Empty;
     private bool hasUnsavedChanges = false;
@@ -118,6 +124,7 @@ else
             
             if (AuthStateService.CurrentUser != null)
             {
+                surveyYear = await SurveyService.GetActiveSurveyYearAsync();
                 communityLocked = await SurveyService.IsCommunitySurveyLockedAsync(GetSelectedCommunityKey());
                 submitted = communityLocked || await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
                 await LogService.LogAsync("Started/Resumed survey", AuthStateService.CurrentUser.Email);

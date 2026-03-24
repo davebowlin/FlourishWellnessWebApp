@@ -148,12 +148,9 @@ namespace FlourishWellness.Services
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
             int? ck = int.TryParse(communityKey, out var parsedCk) ? parsedCk : 0;
 
-            // Enforce one survey per community per year
-            var communityLocked = await context.UserSurveyStatuses
-                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == ck && s.IsCompleted);
-            if (communityLocked)
+            if (activeYear.Status != SurveyYearStatus.Active)
             {
-                throw new InvalidOperationException("This survey has already been submitted for your community this year and cannot be modified.");
+                throw new InvalidOperationException("This survey year has been archived and cannot be modified.");
             }
 
             var existingResponses = await context.Responses
@@ -224,10 +221,7 @@ namespace FlourishWellness.Services
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
-            // Enforce one survey per community per year
-            var alreadyLocked = await context.UserSurveyStatuses
-                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey && s.IsCompleted);
-            if (alreadyLocked)
+            if (activeYear.Status != SurveyYearStatus.Active)
             {
                 return false;
             }
@@ -266,8 +260,7 @@ namespace FlourishWellness.Services
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
-            return await context.UserSurveyStatuses
-                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey && s.IsCompleted);
+            return activeYear.Status != SurveyYearStatus.Active;
         }
 
         public async Task UpdateSectionAsync(int sectionId, string newName)

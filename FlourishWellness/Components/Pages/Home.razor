@@ -8,18 +8,18 @@
 <div style="text-align: center; padding: 40px 0;">
     <h1 style="color: #196887; font-size: 48px; margin-bottom: 20px;">FlourishWellness</h1>
     <p style="font-size: 20px; color: #5f6062; margin-bottom: 40px;">
-        An AmericareUSA Initiative
+        Americare Senior Living
     </p>
 
     @if (AuthStateService.RequiresFacilitySelection)
     {
-        <div style="max-width: 900px; margin: 0 auto 30px auto; padding: 24px; border: 3px solid #ebbc4d; border-radius: 8px; background-color: #fffaec; color: #5f6062;">
-            <h3 style="margin-top: 0;">Facility selection required</h3>
-            <p style="font-size: 18px; margin-bottom: 16px;">
-                Your AD account is linked to multiple facilities. Choose the facility you are logging in as before continuing.
+        <div style="max-width: 675px; margin: 0 auto 22px auto; padding: 18px; border: 2px solid #ebbc4d; border-radius: 8px; background-color: #fffaec; color: #5f6062;">
+            <h4 style="margin-top: 0;">Facility selection required</h4>
+            <p style="font-size: 13.5px; margin-bottom: 12px;">
+                Your account is linked to multiple facilities. Choose the facility you are accessing.
             </p>
-            <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                <select @bind="selectedFacilityValue" style="min-width: 420px; padding: 10px; border: 1px solid #d1d3d5; border-radius: 4px;">
+            <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+                <select @bind="selectedFacilityValue" style="min-width: 315px; padding: 7px; border: 1px solid #d1d3d5; border-radius: 4px; font-size: 13.5px;">
                     <option value="">-- Select facility --</option>
                     @foreach (var option in AuthStateService.ADFacilities)
                     {
@@ -27,7 +27,7 @@
                     }
                 </select>
                 <button @onclick="SaveFacilitySelection"
-                        style="padding: 10px 20px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        style="padding: 7px 15px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13.5px;">
                     Confirm Facility
                 </button>
             </div>
