@@ -15,6 +15,7 @@ namespace FlourishWellness.Data
         public DbSet<UserSurveyStatus> UserSurveyStatuses => Set<UserSurveyStatus>();
         public DbSet<Community> Community => Set<Community>();
         public DbSet<ResponseAuditLog> ResponseAuditLogs => Set<ResponseAuditLog>();
+        public DbSet<SurveyLockAuditLog> SurveyLockAuditLogs => Set<SurveyLockAuditLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

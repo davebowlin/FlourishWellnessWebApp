@@ -9,21 +9,23 @@
  - ??? Ensure surveys are linked to the exec director of the facility
 
 ## Completed:
- - (DONE) Add "Community Name: Year" to the Survey page
- - (DONE) Completed surveys are boolean
- - (DONE) Surveys can be edited during the current year
- - (DONE) Notify user before leaving with unsaved changes
- - (DONE) Change SurveyYear column to use actual year
- - (DONE) Add survey ID for each Facility (we already do this with CommunityKey and SurveyYear)
- - (DONE) One survey per facility per year
- - (DONE) Audit trail for all responses
- - (DONE) Times/dates are now based on CST throughout
- - (DONE) Removed all the local admin code
- - (DONE) User landing page contains Take Survey option only, same with header buttons
- - (DONE) Survey sections should open collapsed
- - (DONE) Bottom of survey:  Submit and Lock (with warnings about editing)
- - (DONE) Only facility admin/director can unlock a locked survey
- - (DONE) Results should only use COMPLETED SURVEY data, arranged by section and question with percentages bar chart per question
+ - ✅ Add "Community Name: Year" to the Survey page
+ - ✅ Completed surveys are boolean
+ - ✅ Surveys can be edited during the current year
+ - ✅ Notify user before leaving with unsaved changes
+ - ✅ Change SurveyYear column to use actual year
+ - ✅ Add survey ID for each Facility (we already do this with CommunityKey and SurveyYear)
+ - ✅ One survey per facility per year
+ - ✅ Audit trail for all responses
+ - ✅ Times/dates are now based on CST throughout
+ - ✅ Removed all the local admin code
+ - ✅ User landing page contains Take Survey option only, same with header buttons
+ - ✅ Survey sections should open collapsed
+ - ✅ Bottom of survey:  Submit and Lock (with warnings about editing)
+ - ✅ Only admins and facility directors can unlock a locked survey
+ - ✅ Only admins can lock or unlock a survey
+ - ✅ Full audit trail when locking or unlocking surveys
+ - ✅ Results use completed surveys, arranged by section and question with percentages bar chart per question
 
  ## Notes
 From the dev document:

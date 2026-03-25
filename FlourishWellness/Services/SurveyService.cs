@@ -434,6 +434,22 @@ namespace FlourishWellness.Services
 
             status.IsCompleted = isLocked;
             status.UpdatedAt = TimeHelper.CstNow;
+
+            // Log the lock/unlock action
+            var actorUser = await context.Users.FindAsync(actorUserId);
+            var auditLog = new SurveyLockAuditLog
+            {
+                UserId = userId,
+                ActorUserId = actorUserId,
+                ActorDisplayName = actorUser?.FullName ?? "Unknown",
+                ActorRole = actorRole,
+                SurveyYearId = activeYear.Year,
+                CommunityKey = communityKey,
+                NewLockState = isLocked,
+                ActionAt = TimeHelper.CstNow
+            };
+            context.SurveyLockAuditLogs.Add(auditLog);
+
             await context.SaveChangesAsync();
             return true;
         }
