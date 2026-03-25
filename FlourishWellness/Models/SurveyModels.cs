@@ -98,6 +98,8 @@
         public string FacilityName { get; set; } = string.Empty;
         public bool IsLocked { get; set; }
         public DateTime LastChangedAt { get; set; }
+        public int AnsweredQuestionCount { get; set; }
+        public int TotalQuestionCount { get; set; }
     }
 
     public class User
