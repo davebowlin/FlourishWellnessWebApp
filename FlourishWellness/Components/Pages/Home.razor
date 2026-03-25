@@ -35,15 +35,18 @@
     }
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 50px;">
-        <div style="padding: 30px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
-            <h3 style="color: #269cce; margin-top: 0;">📊 Dashboard</h3>
-            <p style="color: #5f6062; margin-bottom: 20px;">
-                View analytics, statistics, and insights about survey responses.
-            </p>
-            <a href="/dashboard" style="display: inline-block; padding: 10px 30px; background-color: #269cce; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
-                View Dashboard
-            </a>
-        </div>
+        @if (!AuthStateService.IsEmployee)
+        {
+            <div style="padding: 30px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
+                <h3 style="color: #269cce; margin-top: 0;">📊 Dashboard</h3>
+                <p style="color: #5f6062; margin-bottom: 20px;">
+                    View analytics, statistics, and insights about survey responses.
+                </p>
+                <a href="/dashboard" style="display: inline-block; padding: 10px 30px; background-color: #269cce; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
+                    View Dashboard
+                </a>
+            </div>
+        }
 
         <div style="padding: 30px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
             <h3 style="color: #196887; margin-top: 0;">📋 Take Survey</h3>

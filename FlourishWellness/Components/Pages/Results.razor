@@ -1,6 +1,5 @@
 @using FlourishWellness.Models
 @using FlourishWellness.Services
-@using Microsoft.AspNetCore.Components.Web
 @using System.Text
 
 @page "/results"
@@ -25,7 +24,7 @@ else if (!sections.Any())
 }
 else if (!HasAnyResponses(sections))
 {
-    <p><em>No responses have been submitted yet.</em></p>
+    <p><em>No completed survey responses are available yet.</em></p>
 }
 else
 {
@@ -40,14 +39,41 @@ else
         </button>
     </div>
 
-    @foreach (var sec in sections)
+    @foreach (var summary in questionSummaries)
     {
-        @RenderResultsSection(sec, 0)
+        <div style="margin: 20px 0; padding: 16px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
+            <h4 style="margin: 0 0 6px 0; color: #196887;">@summary.SectionPath</h4>
+            <h5 style="margin: 0 0 10px 0; color: #5f6062;">@summary.QuestionText</h5>
+            <p style="margin: 0 0 14px 0; color: #5f6062;"><strong>@summary.TotalResponses</strong> completed response(s)</p>
+
+            @foreach (var option in AnswerOptions)
+            {
+                var count = summary.Counts.GetValueOrDefault(option.Label, 0);
+                var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0);
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #5f6062; font-size: 14px;">
+                        <span>@option.Label</span>
+                        <span>@count (@percentage.ToString("0.0")%)</span>
+                    </div>
+                    <div style="height: 18px; background-color: #e9eeea; border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; width: @percentage.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%; background-color: @option.Color;"></div>
+                    </div>
+                </div>
+            }
+        </div>
     }
 }
 
 @code {
     private List<Section>? sections;
+    private List<QuestionSummaryRow> questionSummaries = new();
+
+    private static readonly List<AnswerOptionColor> AnswerOptions = new()
+    {
+        new("Fully Implemented", "#439539"),
+        new("Partially Implemented", "#269cce"),
+        new("Not a Current Practice", "#ebbc4d")
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -77,16 +103,18 @@ else
     {
         try
         {
-            sections = await SurveyService.GetSectionsWithResponsesAsync();
+            sections = await SurveyService.GetSectionsWithCompletedResponsesAsync();
             if (sections == null)
             {
                 sections = new List<Section>();
             }
+            questionSummaries = BuildQuestionSummaries(sections);
         }
         catch (Exception ex)
         {
             await LogService.LogAsync($"Error loading results: {ex.Message}", "System");
             sections = new List<Section>();
+            questionSummaries = new List<QuestionSummaryRow>();
         }
     }
 
@@ -102,80 +130,78 @@ else
         return false;
     }
 
-    private RenderFragment RenderResultsSection(Section sec, int level) => builder =>
+    private static List<QuestionSummaryRow> BuildQuestionSummaries(List<Section> roots)
     {
-        var hasResponses = sec.Questions.Any(q => q.Responses.Any());
-        var hasSubsectionResponses = sec.Subsections.Any() && HasAnyResponses(sec.Subsections);
+        var summaries = new List<QuestionSummaryRow>();
 
-        if (!hasResponses && !hasSubsectionResponses)
-            return;
-
-        var marginLeft = level * 20;
-
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;");
-
-        builder.OpenElement(2, "h4");
-        builder.AddAttribute(3, "style", "margin-top: 0; color: #5f6062; border-bottom: 2px solid #196887; padding-bottom: 10px;");
-        builder.AddContent(4, level > 0 ? $"? {sec.Name}" : sec.Name);
-        builder.CloseElement();
-
-        foreach (var question in sec.Questions)
+        void Traverse(Section section, string parentPath)
         {
-            if (question.Responses.Any())
+            var sectionPath = string.IsNullOrWhiteSpace(parentPath)
+                ? section.Name
+                : $"{parentPath} > {section.Name}";
+
+            foreach (var question in section.Questions)
             {
-                builder.OpenElement(5, "div");
-                builder.AddAttribute(6, "style", "margin: 20px 0; padding: 15px; background-color: white; border-radius: 5px;");
-
-                builder.OpenElement(7, "h5");
-                builder.AddAttribute(8, "style", "color: #5f6062; margin-top: 0;");
-                builder.AddContent(9, question.Text);
-                builder.CloseElement();
-
-                builder.OpenElement(10, "p");
-                builder.AddAttribute(11, "style", "color: #5f6062; font-size: 14px; margin-bottom: 10px;");
-                builder.OpenElement(12, "strong");
-                builder.AddContent(13, question.Responses.Count.ToString());
-                builder.CloseElement();
-                builder.AddContent(14, " response(s)");
-                builder.CloseElement();
-
-                builder.OpenElement(15, "ul");
-                builder.AddAttribute(16, "style", "list-style-type: none; padding-left: 0;");
-
-                foreach (var response in question.Responses)
+                var total = question.Responses.Count;
+                if (total == 0)
                 {
-                    var respondentName = !string.IsNullOrWhiteSpace(response.User?.FullName)
-                        ? response.User.FullName
-                        : response.User?.Email ?? "Unknown User";
-
-                    builder.OpenElement(17, "li");
-                    builder.AddAttribute(18, "style", "padding: 8px; margin: 5px 0; background-color: #f6f9f7; border-left: 3px solid #196887; border-radius: 3px;");
-                    builder.AddContent(19, $"{respondentName}: {response.Answer}");
-                    builder.CloseElement();
+                    continue;
                 }
 
-                builder.CloseElement();
-                builder.CloseElement();
+                var counts = AnswerOptions.ToDictionary(a => a.Label, _ => 0, StringComparer.OrdinalIgnoreCase);
+                foreach (var response in question.Responses)
+                {
+                    if (counts.ContainsKey(response.Answer))
+                    {
+                        counts[response.Answer]++;
+                    }
+                }
+
+                var percentages = counts.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => total == 0 ? 0d : (kvp.Value * 100d / total),
+                    StringComparer.OrdinalIgnoreCase);
+
+                summaries.Add(new QuestionSummaryRow
+                {
+                    SectionPath = sectionPath,
+                    QuestionText = question.Text,
+                    TotalResponses = total,
+                    Counts = counts,
+                    Percentages = percentages
+                });
+            }
+
+            foreach (var subsection in section.Subsections)
+            {
+                Traverse(subsection, sectionPath);
             }
         }
 
-        builder.CloseElement();
-
-        foreach (var subsec in sec.Subsections)
+        foreach (var root in roots)
         {
-            builder.AddContent(20, RenderResultsSection(subsec, level + 1));
+            Traverse(root, string.Empty);
         }
-    };
+
+        return summaries;
+    }
 
     private async Task ExportToCSV()
     {
-        if (sections == null || !sections.Any()) return;
+        if (!questionSummaries.Any()) return;
 
         var csv = new StringBuilder();
-        csv.AppendLine("Section,Question,Response");
+        csv.AppendLine("Section,Question,Answer Option,Count,Percentage");
 
-        ExportSectionToCSV(sections, csv);
+        foreach (var summary in questionSummaries)
+        {
+            foreach (var option in AnswerOptions)
+            {
+                var count = summary.Counts.GetValueOrDefault(option.Label, 0);
+                var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0d);
+                csv.AppendLine($"\"{summary.SectionPath}\",\"{summary.QuestionText}\",\"{option.Label}\",{count},{percentage:0.00}");
+            }
+        }
 
         var bytes = Encoding.UTF8.GetBytes(csv.ToString());
         var base64 = Convert.ToBase64String(bytes);
@@ -184,21 +210,24 @@ else
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
     }
 
-    private void ExportSectionToCSV(List<Section> secs, StringBuilder csv)
+    private sealed class QuestionSummaryRow
     {
-        foreach (var sec in secs)
+        public string SectionPath { get; set; } = string.Empty;
+        public string QuestionText { get; set; } = string.Empty;
+        public int TotalResponses { get; set; }
+        public Dictionary<string, int> Counts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, double> Percentages { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class AnswerOptionColor
+    {
+        public AnswerOptionColor(string label, string color)
         {
-            foreach (var question in sec.Questions)
-            {
-                foreach (var response in question.Responses)
-                {
-                    csv.AppendLine($"\"{sec.Name}\",\"{question.Text}\",\"{response.Answer}\"");
-                }
-            }
-            if (sec.Subsections.Any())
-            {
-                ExportSectionToCSV(sec.Subsections, csv);
-            }
+            Label = label;
+            Color = color;
         }
+
+        public string Label { get; }
+        public string Color { get; }
     }
 }

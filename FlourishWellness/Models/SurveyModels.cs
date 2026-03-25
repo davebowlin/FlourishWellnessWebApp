@@ -81,6 +81,25 @@
         public DateTime UpdatedAt { get; set; } = TimeHelper.CstNow;
     }
 
+    public class CompletedSurveyEntry
+    {
+        public int UserId { get; set; }
+        public string UserDisplayName { get; set; } = string.Empty;
+        public int? CommunityKey { get; set; }
+        public int SurveyYearId { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class SurveyLockRow
+    {
+        public int UserId { get; set; }
+        public string UserDisplayName { get; set; } = string.Empty;
+        public int? CommunityKey { get; set; }
+        public string FacilityName { get; set; } = string.Empty;
+        public bool IsLocked { get; set; }
+        public DateTime LastChangedAt { get; set; }
+    }
+
     public class User
     {
         public int Id { get; set; }
