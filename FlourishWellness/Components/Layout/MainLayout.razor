@@ -23,14 +23,13 @@
 
             <div class="@NavMenuCssClass">
                 <div class="nav-links">
-                    <a href="/dashboard" class="nav-link">Dashboard</a>
+                    @if (canViewDashboard)
+                    {
+                        <a href="/dashboard" class="nav-link">Dashboard</a>
+                    }
                     @if (canAccessAdmin)
                     {
                         <a href="/admin" class="nav-link">Admin</a>
-                    }
-                    else
-                    {
-                        <a href="/admin-login" class="nav-link">Admin Login</a>
                     }
                     @if (canViewResults)
                     {
@@ -68,6 +67,7 @@
 @code {
     private bool collapseNavMenu = true;
     private string displayUserName = "Guest User";
+    private bool canViewDashboard;
     private bool canAccessAdmin;
     private bool canViewResults;
     private bool showDefaultAdminLogout;
@@ -108,6 +108,7 @@
             displayUserName = !string.IsNullOrWhiteSpace(currentUser.FullName)
                 ? currentUser.FullName
                 : currentUser.Email;
+            canViewDashboard = currentUser.Role != UserRole.Employee;
             canAccessAdmin = currentUser.Role == UserRole.Admin;
             canViewResults = currentUser.Role == UserRole.Admin || currentUser.Role == UserRole.Manager;
             showDefaultAdminLogout = string.Equals(currentUser.Email, "admin", StringComparison.OrdinalIgnoreCase);
@@ -126,6 +127,7 @@
             displayUserName = "Guest User";
         }
 
+        canViewDashboard = false;
         canAccessAdmin = false;
         canViewResults = false;
         showDefaultAdminLogout = false;

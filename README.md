@@ -9,8 +9,6 @@ Survey app built with Blazor on .NET 10.
 - Windows Authentication (Negotiate) for normal sign-in
 - Role-based access (`Employee`, `Manager`, `Admin`)
 
-There is also an `/admin-login` page, but it only works if an `admin` user already exists in the database.
-
 ## Survey year behavior
 
 Surveys are grouped by year.
@@ -27,7 +25,7 @@ Quick example:
 1. 2026 is active.
 2. Admin archives 2026.
 3. App creates 2027 as active.
-4. 2026 remains archived.
+4. 2026 remains archived and cannot be edited.
 
 ## Run locally
 
@@ -40,30 +38,27 @@ dotnet ef database update
 dotnet run
 ```
 
-Before running, make sure `ConnectionStrings:DefaultConnection` is set in either:
+Before running, make sure `ConnectionStrings:DefaultConnection` is set in:
 
 - `appsettings.json`
-- `appsettings.Development.json`
 
 Notes:
 
 - App startup will fail if `DefaultConnection` is missing or empty.
-- In Development, fallback authorization is not globally enforced.
 - In Production, authenticated users are required by default.
 
 ## Admin access notes
 
 - Local `admin` account is **not** auto-created.
-- `/admin-login` only authenticates an existing `admin` DB user.
 - Windows users are auto-created in `Users` when they sign in.
-- First auto-created Windows user becomes `Admin`; later users default to `Employee`.
+- First auto-created Windows user becomes `Admin`; other users default to `Employee` role.
 
 Suggested first setup:
 
 1. Sign in with Windows auth.
 2. Go to Admin -> Manage Users.
 3. Set your AD account to the role you need.
-4. If you want a fallback local admin login, create an `admin` account from the /admin page in the app.
+4. If you want a fallback local admin login, create an account in Manage Users and set the role to Admin.
 
 ## IIS deployment (production)
 

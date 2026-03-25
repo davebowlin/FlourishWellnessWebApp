@@ -110,6 +110,35 @@ namespace FlourishWellness.Services
                 .ToListAsync();
         }
 
+        public async Task<List<Section>> GetSectionsWithCompletedResponsesAsync()
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+
+            var sections = await context.Sections
+                .Where(s => s.ParentSectionId == null && s.SurveyYearId == activeYear.Year)
+                .Include(s => s.Questions)
+                    .ThenInclude(q => q.Responses)
+                        .ThenInclude(r => r.User)
+                .Include(s => s.Subsections)
+                    .ThenInclude(sub => sub.Questions)
+                        .ThenInclude(q => q.Responses)
+                            .ThenInclude(r => r.User)
+                .ToListAsync();
+
+            var completedStatusRows = await context.UserSurveyStatuses
+                .Where(s => s.SurveyYearId == activeYear.Year && s.IsCompleted)
+                .Select(s => new { s.UserId, s.CommunityKey })
+                .ToListAsync();
+
+            var completedKeys = completedStatusRows
+                .Select(s => BuildCompletionKey(s.UserId, s.CommunityKey))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            FilterResponsesToCompletedStatus(sections, completedKeys);
+            return sections;
+        }
+
         public async Task AddSectionAsync(Section sec)
         {
             using var context = await _factory.CreateDbContextAsync();
@@ -148,12 +177,17 @@ namespace FlourishWellness.Services
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
             int? ck = int.TryParse(communityKey, out var parsedCk) ? parsedCk : 0;
 
-            // Enforce one survey per community per year
-            var communityLocked = await context.UserSurveyStatuses
-                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == ck && s.IsCompleted);
-            if (communityLocked)
+            if (activeYear.Status != SurveyYearStatus.Active)
             {
-                throw new InvalidOperationException("This survey has already been submitted for your community this year and cannot be modified.");
+                throw new InvalidOperationException("This survey year has been archived and cannot be modified.");
+            }
+
+            var status = await context.UserSurveyStatuses
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == activeYear.Year && s.CommunityKey == ck);
+
+            if (status?.IsCompleted == true)
+            {
+                throw new InvalidOperationException("This survey is submitted and locked. A manager or admin must unlock it before editing.");
             }
 
             var existingResponses = await context.Responses
@@ -224,10 +258,7 @@ namespace FlourishWellness.Services
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
 
-            // Enforce one survey per community per year
-            var alreadyLocked = await context.UserSurveyStatuses
-                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey && s.IsCompleted);
-            if (alreadyLocked)
+            if (activeYear.Status != SurveyYearStatus.Active)
             {
                 return false;
             }
@@ -266,8 +297,167 @@ namespace FlourishWellness.Services
         {
             using var context = await _factory.CreateDbContextAsync();
             var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+            return activeYear.Status != SurveyYearStatus.Active;
+        }
+
+        public async Task<List<SurveyLockRow>> GetSurveyLockRowsAsync(string filter = "locked")
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+
+            var responseRows = await context.Responses
+                .Where(r => r.SurveyYearId == activeYear.Year)
+                .GroupBy(r => new { r.UserId, r.CommunityKey })
+                .Select(g => new
+                {
+                    g.Key.UserId,
+                    g.Key.CommunityKey,
+                    LastResponseAt = g.Max(r => (DateTime?)(r.Modified ?? r.CreateDate))
+                })
+                .ToListAsync();
+
+            var statusRows = await context.UserSurveyStatuses
+                .Where(s => s.SurveyYearId == activeYear.Year)
+                .ToListAsync();
+
+            var keySet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var responseRow in responseRows)
+            {
+                keySet.Add(BuildCompletionKey(responseRow.UserId, responseRow.CommunityKey));
+            }
+
+            foreach (var statusRow in statusRows)
+            {
+                keySet.Add(BuildCompletionKey(statusRow.UserId, statusRow.CommunityKey));
+            }
+
+            if (keySet.Count == 0)
+            {
+                return new List<SurveyLockRow>();
+            }
+
+            var statusByKey = statusRows.ToDictionary(
+                s => BuildCompletionKey(s.UserId, s.CommunityKey),
+                s => s,
+                StringComparer.OrdinalIgnoreCase);
+
+            var responseTimeByKey = responseRows.ToDictionary(
+                r => BuildCompletionKey(r.UserId, r.CommunityKey),
+                r => r.LastResponseAt,
+                StringComparer.OrdinalIgnoreCase);
+
+            var userIds = keySet
+                .Select(ParseCompletionKey)
+                .Select(k => k.userId)
+                .Distinct()
+                .ToList();
+
+            var communityKeys = keySet
+                .Select(ParseCompletionKey)
+                .Select(k => k.communityKey)
+                .Where(k => k.HasValue)
+                .Select(k => k!.Value)
+                .Distinct()
+                .ToList();
+
+            var users = await context.Users
+                .Where(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id);
+
+            var communityRows = await context.Community
+                .Where(c => userIds.Contains(c.Id) || communityKeys.Contains(c.CommunityKey))
+                .ToListAsync();
+
+            var rows = new List<SurveyLockRow>();
+
+            foreach (var key in keySet)
+            {
+                var (userId, communityKey) = ParseCompletionKey(key);
+                var user = users.GetValueOrDefault(userId);
+                var status = statusByKey.GetValueOrDefault(key);
+                var facilityName = ResolveFacilityName(communityRows, userId, communityKey);
+
+                var isLocked = status?.IsCompleted ?? false;
+                var lastChangedAt = status?.UpdatedAt
+                    ?? responseTimeByKey.GetValueOrDefault(key)
+                    ?? TimeHelper.CstNow;
+
+                if (string.Equals(filter, "locked", StringComparison.OrdinalIgnoreCase) && !isLocked)
+                {
+                    continue;
+                }
+
+                if (string.Equals(filter, "unlocked", StringComparison.OrdinalIgnoreCase) && isLocked)
+                {
+                    continue;
+                }
+
+                rows.Add(new SurveyLockRow
+                {
+                    UserId = userId,
+                    CommunityKey = communityKey,
+                    FacilityName = facilityName,
+                    IsLocked = isLocked,
+                    LastChangedAt = lastChangedAt,
+                    UserDisplayName = !string.IsNullOrWhiteSpace(user?.FullName)
+                        ? user!.FullName
+                        : user?.Email ?? $"User {userId}"
+                });
+            }
+
+            return rows
+                .OrderBy(r => r.FacilityName)
+                .ThenBy(r => r.UserDisplayName)
+                .ToList();
+        }
+
+        public async Task<bool> SetSurveyLockStateAsync(int userId, int? communityKey, bool isLocked, int actorUserId, UserRole actorRole)
+        {
+            if (actorRole != UserRole.Admin && actorRole != UserRole.Manager)
+            {
+                throw new UnauthorizedAccessException("Only admins and managers can change survey lock state.");
+            }
+
+            if (actorRole == UserRole.Manager && isLocked)
+            {
+                throw new UnauthorizedAccessException("Managers can only unlock surveys.");
+            }
+
+            using var context = await _factory.CreateDbContextAsync();
+            var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+
+            var status = await GetOrCreateUserSurveyStatusAsync(context, userId, activeYear.Year, communityKey);
+            if (status.IsCompleted == isLocked)
+            {
+                return false;
+            }
+
+            status.IsCompleted = isLocked;
+            status.UpdatedAt = TimeHelper.CstNow;
+            await context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<CompletedSurveyEntry>> GetCompletedSurveyEntriesAsync()
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+
             return await context.UserSurveyStatuses
-                .AnyAsync(s => s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey && s.IsCompleted);
+                .Where(s => s.SurveyYearId == activeYear.Year && s.IsCompleted)
+                .Include(s => s.User)
+                .OrderByDescending(s => s.UpdatedAt)
+                .Select(s => new CompletedSurveyEntry
+                {
+                    UserId = s.UserId,
+                    CommunityKey = s.CommunityKey,
+                    SurveyYearId = s.SurveyYearId,
+                    UpdatedAt = s.UpdatedAt,
+                    UserDisplayName = !string.IsNullOrWhiteSpace(s.User.FullName)
+                        ? s.User.FullName
+                        : s.User.Email
+                })
+                .ToListAsync();
         }
 
         public async Task UpdateSectionAsync(int sectionId, string newName)
@@ -504,6 +694,67 @@ namespace FlourishWellness.Services
             }
 
             await CloneLevelAsync(null, null);
+        }
+
+        private static string BuildCompletionKey(int userId, int? communityKey)
+        {
+            return $"{userId}:{communityKey.GetValueOrDefault()}";
+        }
+
+        private static (int userId, int? communityKey) ParseCompletionKey(string key)
+        {
+            var split = key.Split(':', 2);
+            if (!int.TryParse(split[0], out var userId))
+            {
+                return (0, 0);
+            }
+
+            if (split.Length < 2 || !int.TryParse(split[1], out var communityKey))
+            {
+                return (userId, 0);
+            }
+
+            return (userId, communityKey);
+        }
+
+        private static string ResolveFacilityName(List<Community> communityRows, int userId, int? communityKey)
+        {
+            Community? match = null;
+
+            if (communityKey.HasValue)
+            {
+                match = communityRows.FirstOrDefault(c => c.Id == userId && c.CommunityKey == communityKey.Value)
+                    ?? communityRows.FirstOrDefault(c => c.CommunityKey == communityKey.Value);
+            }
+
+            match ??= communityRows.FirstOrDefault(c => c.Id == userId);
+
+            if (match != null && !string.IsNullOrWhiteSpace(match.Facility))
+            {
+                return match.Facility;
+            }
+
+            return communityKey.HasValue
+                ? $"Unknown Facility (CK: {communityKey.Value})"
+                : "Unknown Facility";
+        }
+
+        private static void FilterResponsesToCompletedStatus(List<Section> sections, HashSet<string> completedKeys)
+        {
+            foreach (var section in sections)
+            {
+                foreach (var question in section.Questions)
+                {
+                    question.Responses = question.Responses
+                        .Where(r => completedKeys.Contains(BuildCompletionKey(r.UserId, r.CommunityKey)))
+                        .ToList();
+                }
+
+                if (section.Subsections.Any())
+                {
+                    FilterResponsesToCompletedStatus(section.Subsections, completedKeys);
+                }
+            }
         }
 
         

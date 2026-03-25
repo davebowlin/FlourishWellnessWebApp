@@ -14,7 +14,12 @@
 
 <PageTitle>FlourishWellness Survey</PageTitle>
 
-<h3>FlourishWellness Assessment Survey</h3>
+<div style="text-align: center; padding: 1rem 0 0.75rem; border-bottom: 2px solid var(--fw-primary-light); margin-bottom: 1.5rem;">
+    <h2 style="margin: 0; font-family: 'Montserrat', Verdana, sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--fw-primary); letter-spacing: 0.01em;">
+        @(GetSelectedCommunityKey() == 0 ? "N/A" : (AuthStateService.SelectedFacility?.Facility ?? "N/A"))
+        <span style="color: var(--fw-text); font-weight: 400;">&nbsp;&mdash;&nbsp;@(surveyYear?.Year.ToString() ?? "...")</span>
+    </h2>
+</div>
 
 @if (sections is null)
 {
@@ -22,29 +27,29 @@
 }
 else if (!sections.Any())
 {
-    <p><em>No survey questions available yet. Please contact an administrator if you feel this is an error.</em></p>
+    <p><em>This area is not available to you right now.</em></p>
 }
 else
 {
     @if (communityLocked)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062;">
-            <h4 style="margin-top: 0;">Survey Locked</h4>
-            <p style="margin: 0;">This survey has already been submitted for your community this year. No further changes are permitted.</p>
+            <h4 style="margin-top: 0;">Survey Year Archived</h4>
+            <p style="margin: 0;">This survey year has been archived by an administrator. No further changes are permitted.</p>
         </div>
     }
     else if (submitted)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #d8e2b4; border: 1px solid #9fb456; border-radius: 5px; color: #387c2b;">
-            <h4>Survey previously submitted</h4>
-            <p>Your saved responses are loaded below. You can continue editing and re-submit.</p>
+            <h4>Survey submitted and locked</h4>
+            <p>This survey is locked for editing. A manager or admin must unlock it before any changes can be made.</p>
         </div>
     }
 
     @if (AuthStateService.RequiresFacilitySelection)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062; font-size: 18px; font-weight: 600;">
-            Multiple AD facilities were found for your account. Please return to the home page and choose your facility before saving or submitting.
+            Your account is assigned to multiple facilities. Please return to the home page and choose your facility before saving or submitting.
         </div>
     }
 
@@ -67,10 +72,32 @@ else
         </div>
     }
 
-    <button @onclick="SubmitSurvey" disabled="@communityLocked"
-            style="padding: 12px 40px; background-color: @(communityLocked ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @(communityLocked ? "not-allowed" : "pointer"); margin: 20px 0; font-weight: 500;">
-        Submit Survey
+    <button @onclick="OpenSubmitAndLockDialog" disabled="@(communityLocked || submitted)"
+            style="padding: 12px 40px; background-color: @((communityLocked || submitted) ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @((communityLocked || submitted) ? "not-allowed" : "pointer"); margin: 20px 0; font-weight: 500;">
+        Submit and Lock
     </button>
+
+    @if (showSubmitAndLockDialog)
+    {
+        <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 2000;">
+            <div style="background: white; padding: 30px 36px; border-radius: 8px; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
+                <h4 style="margin-top: 0; color: #196887;">Submit and Lock Survey</h4>
+                <p style="color: #5f6062; margin-bottom: 24px;">
+                    Submitting will lock this survey and prevent further edits. Only a manager or admin can unlock it.
+                </p>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                    <button @onclick="ConfirmSubmitAndLock"
+                            style="padding: 9px 18px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Submit and Lock
+                    </button>
+                    <button @onclick="CancelSubmitAndLock"
+                            style="padding: 9px 18px; background-color: #f6f9f7; color: #5f6062; border: 1px solid #d1d3d5; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 
     @if (showLeaveDialog)
     {
@@ -102,12 +129,17 @@ else
     private Dictionary<int, string> responses = new();
     private bool submitted = false;
     private bool communityLocked = false;
+    private SurveyYear? surveyYear;
     private string errorMessage = string.Empty;
     private string saveMessage = string.Empty;
     private bool hasUnsavedChanges = false;
     private bool showLeaveDialog = false;
+    private bool showSubmitAndLockDialog = false;
     private string pendingNavigationUrl = string.Empty;
+    private HashSet<int> expandedSectionIds = new();
     private IDisposable? _locationChangingReg;
+
+    private bool IsSurveyReadOnly => communityLocked || submitted;
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,6 +150,7 @@ else
             
             if (AuthStateService.CurrentUser != null)
             {
+                surveyYear = await SurveyService.GetActiveSurveyYearAsync();
                 communityLocked = await SurveyService.IsCommunitySurveyLockedAsync(GetSelectedCommunityKey());
                 submitted = communityLocked || await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
                 await LogService.LogAsync("Started/Resumed survey", AuthStateService.CurrentUser.Email);
@@ -140,6 +173,7 @@ else
         try
         {
             sections = await SurveyService.GetSectionsAsync();
+            expandedSectionIds.Clear();
 
             if (sections != null)
             {
@@ -188,96 +222,109 @@ else
     private RenderFragment RenderSectionSurvey(Section sec, int level) => builder =>
     {
         var marginLeft = level * 20;
+        var isExpanded = expandedSectionIds.Contains(sec.Id);
 
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;");
 
-        builder.OpenElement(2, "h4");
-        builder.AddAttribute(3, "style", "margin-top: 0; margin-bottom: 20px; color: #5f6062; border-bottom: 2px solid #196887; padding-bottom: 10px;");
-        builder.AddContent(4, level > 0 ? $"? {sec.Name}" : sec.Name);
+        builder.OpenElement(2, "button");
+        builder.AddAttribute(3, "type", "button");
+        builder.AddAttribute(4, "onclick", EventCallback.Factory.Create(this, () => ToggleSection(sec.Id)));
+        builder.AddAttribute(5, "style", "width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 0 10px 0; margin: 0 0 20px 0; background: transparent; border: none; border-bottom: 2px solid #196887; color: #5f6062; cursor: pointer; text-align: left;");
+        builder.OpenElement(6, "span");
+        builder.AddAttribute(7, "style", "font-size: 1.1rem; font-weight: 600;");
+        builder.AddContent(8, level > 0 ? $"{sec.Name}" : sec.Name);
+        builder.CloseElement();
+        builder.OpenElement(9, "span");
+        builder.AddAttribute(10, "style", "font-size: 1.1rem; color: #196887;");
+        builder.AddContent(11, isExpanded ? "-" : "+");
+        builder.CloseElement();
         builder.CloseElement();
 
-        if (sec.Questions.Any())
+        if (isExpanded && sec.Questions.Any())
         {
-            builder.OpenElement(5, "table");
-            builder.AddAttribute(6, "style", "width: 100%; border-collapse: collapse; background-color: white;");
+            builder.OpenElement(12, "table");
+            builder.AddAttribute(13, "style", "width: 100%; border-collapse: collapse; background-color: white;");
 
-            builder.OpenElement(7, "thead");
-            builder.OpenElement(8, "tr");
-            builder.AddAttribute(9, "style", "background-color: #196887; color: white;");
+            builder.OpenElement(14, "thead");
+            builder.OpenElement(15, "tr");
+            builder.AddAttribute(16, "style", "background-color: #196887; color: white;");
 
-            builder.OpenElement(10, "th");
-            builder.AddAttribute(11, "style", "padding: 12px; text-align: left; border: 1px solid #d1d3d5; width: 50%;");
-            builder.AddContent(12, "Question");
+            builder.OpenElement(17, "th");
+            builder.AddAttribute(18, "style", "padding: 12px; text-align: left; border: 1px solid #d1d3d5; width: 50%;");
+            builder.AddContent(19, "Question");
             builder.CloseElement();
 
-            builder.OpenElement(13, "th");
-            builder.AddAttribute(14, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
-            builder.AddContent(15, "Fully Implemented");
+            builder.OpenElement(20, "th");
+            builder.AddAttribute(21, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
+            builder.AddContent(22, "Fully Implemented");
             builder.CloseElement();
 
-            builder.OpenElement(16, "th");
-            builder.AddAttribute(17, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
-            builder.AddContent(18, "Partially Implemented");
+            builder.OpenElement(23, "th");
+            builder.AddAttribute(24, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
+            builder.AddContent(25, "Partially Implemented");
             builder.CloseElement();
 
-            builder.OpenElement(19, "th");
-            builder.AddAttribute(20, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
-            builder.AddContent(21, "Not a Current Practice");
+            builder.OpenElement(26, "th");
+            builder.AddAttribute(27, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
+            builder.AddContent(28, "Not a Current Practice");
             builder.CloseElement();
 
             builder.CloseElement();
             builder.CloseElement();
 
-            builder.OpenElement(22, "tbody");
+            builder.OpenElement(29, "tbody");
 
             foreach (var question in sec.Questions)
             {
                 var questionId = question.Id;
-                builder.OpenElement(23, "tr");
-                builder.AddAttribute(24, "style", "border-bottom: 1px solid #d1d3d5;");
+                builder.OpenElement(30, "tr");
+                builder.AddAttribute(31, "style", "border-bottom: 1px solid #d1d3d5;");
 
-                builder.OpenElement(25, "td");
-                builder.AddAttribute(26, "style", "padding: 12px; border: 1px solid #d1d3d5; vertical-align: middle;");
-                builder.OpenElement(27, "span");
-                builder.AddAttribute(28, "style", "font-weight: 500; color: #5f6062;");
-                builder.AddContent(29, question.Text);
-                builder.CloseElement();
-                builder.CloseElement();
-
-                builder.OpenElement(30, "td");
-                builder.AddAttribute(31, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
-                builder.OpenElement(32, "input");
-                builder.AddAttribute(33, "type", "radio");
-                builder.AddAttribute(34, "name", $"question_{questionId}");
-                builder.AddAttribute(35, "value", "Fully Implemented");
-                builder.AddAttribute(36, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Fully Implemented")));
-                builder.AddAttribute(37, "checked", responses.GetValueOrDefault(questionId) == "Fully Implemented");
-                builder.AddAttribute(38, "style", "cursor: pointer; width: 18px; height: 18px;");
+                builder.OpenElement(32, "td");
+                builder.AddAttribute(33, "style", "padding: 12px; border: 1px solid #d1d3d5; vertical-align: middle;");
+                builder.OpenElement(34, "span");
+                builder.AddAttribute(35, "style", "font-weight: 500; color: #5f6062;");
+                builder.AddContent(36, question.Text);
                 builder.CloseElement();
                 builder.CloseElement();
 
-                builder.OpenElement(39, "td");
-                builder.AddAttribute(40, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
-                builder.OpenElement(41, "input");
-                builder.AddAttribute(42, "type", "radio");
-                builder.AddAttribute(43, "name", $"question_{questionId}");
-                builder.AddAttribute(44, "value", "Partially Implemented");
-                builder.AddAttribute(45, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Partially Implemented")));
-                builder.AddAttribute(46, "checked", responses.GetValueOrDefault(questionId) == "Partially Implemented");
-                builder.AddAttribute(47, "style", "cursor: pointer; width: 18px; height: 18px;");
+                builder.OpenElement(37, "td");
+                builder.AddAttribute(38, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
+                builder.OpenElement(39, "input");
+                builder.AddAttribute(40, "type", "radio");
+                builder.AddAttribute(41, "name", $"question_{questionId}");
+                builder.AddAttribute(42, "value", "Fully Implemented");
+                builder.AddAttribute(43, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Fully Implemented")));
+                builder.AddAttribute(44, "checked", responses.GetValueOrDefault(questionId) == "Fully Implemented");
+                builder.AddAttribute(45, "disabled", IsSurveyReadOnly);
+                builder.AddAttribute(46, "style", "cursor: pointer; width: 18px; height: 18px;");
                 builder.CloseElement();
                 builder.CloseElement();
 
-                builder.OpenElement(48, "td");
-                builder.AddAttribute(49, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
-                builder.OpenElement(50, "input");
-                builder.AddAttribute(51, "type", "radio");
-                builder.AddAttribute(52, "name", $"question_{questionId}");
-                builder.AddAttribute(53, "value", "Not a Current Practice");
-                builder.AddAttribute(54, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Not a Current Practice")));
-                builder.AddAttribute(55, "checked", responses.GetValueOrDefault(questionId) == "Not a Current Practice");
+                builder.OpenElement(47, "td");
+                builder.AddAttribute(48, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
+                builder.OpenElement(49, "input");
+                builder.AddAttribute(50, "type", "radio");
+                builder.AddAttribute(51, "name", $"question_{questionId}");
+                builder.AddAttribute(52, "value", "Partially Implemented");
+                builder.AddAttribute(53, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Partially Implemented")));
+                builder.AddAttribute(54, "checked", responses.GetValueOrDefault(questionId) == "Partially Implemented");
+                builder.AddAttribute(55, "disabled", IsSurveyReadOnly);
                 builder.AddAttribute(56, "style", "cursor: pointer; width: 18px; height: 18px;");
+                builder.CloseElement();
+                builder.CloseElement();
+
+                builder.OpenElement(57, "td");
+                builder.AddAttribute(58, "style", "padding: 12px; border: 1px solid #d1d3d5; text-align: center; vertical-align: middle;");
+                builder.OpenElement(59, "input");
+                builder.AddAttribute(60, "type", "radio");
+                builder.AddAttribute(61, "name", $"question_{questionId}");
+                builder.AddAttribute(62, "value", "Not a Current Practice");
+                builder.AddAttribute(63, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateResponse(questionId, "Not a Current Practice")));
+                builder.AddAttribute(64, "checked", responses.GetValueOrDefault(questionId) == "Not a Current Practice");
+                builder.AddAttribute(65, "disabled", IsSurveyReadOnly);
+                builder.AddAttribute(66, "style", "cursor: pointer; width: 18px; height: 18px;");
                 builder.CloseElement();
                 builder.CloseElement();
 
@@ -288,27 +335,38 @@ else
             builder.CloseElement();
         }
 
-        builder.CloseElement();
-
-        foreach (var subsec in sec.Subsections)
+        if (isExpanded)
         {
-            builder.AddContent(57, RenderSectionSurvey(subsec, level + 1));
+            foreach (var subsec in sec.Subsections)
+            {
+                builder.AddContent(67, RenderSectionSurvey(subsec, level + 1));
+            }
+
+            // Section-level save button
+            builder.OpenElement(68, "div");
+            builder.AddAttribute(69, "style", "margin-top: 15px; text-align: right;");
+            builder.OpenElement(70, "button");
+            if (!IsSurveyReadOnly)
+            {
+                builder.AddAttribute(71, "onclick", EventCallback.Factory.Create(this, SaveProgress));
+            }
+            builder.AddAttribute(72, "disabled", IsSurveyReadOnly);
+            builder.AddAttribute(73, "style", $"padding: 8px 16px; background-color: {(IsSurveyReadOnly ? "#b0b0b0" : "#5f6062")}; color: white; border: none; border-radius: 4px; cursor: {(IsSurveyReadOnly ? "not-allowed" : "pointer")};");
+            builder.AddContent(74, "Save Progress");
+            builder.CloseElement();
+            builder.CloseElement();
         }
 
-        // Add Save Progress button at the bottom of the section
-        builder.OpenElement(58, "div");
-        builder.AddAttribute(59, "style", "margin-top: 15px; text-align: right;");
-        builder.OpenElement(60, "button");
-        if (!communityLocked)
-        {
-            builder.AddAttribute(61, "onclick", EventCallback.Factory.Create(this, SaveProgress));
-        }
-        builder.AddAttribute(61, "disabled", communityLocked);
-        builder.AddAttribute(62, "style", $"padding: 8px 16px; background-color: {(communityLocked ? "#b0b0b0" : "#5f6062")}; color: white; border: none; border-radius: 4px; cursor: {(communityLocked ? "not-allowed" : "pointer")};");
-        builder.AddContent(63, "Save Progress");
-        builder.CloseElement();
         builder.CloseElement();
     };
+
+    private void ToggleSection(int sectionId)
+    {
+        if (!expandedSectionIds.Add(sectionId))
+        {
+            expandedSectionIds.Remove(sectionId);
+        }
+    }
 
     private void UpdateResponse(int questionId, string value)
     {
@@ -325,18 +383,26 @@ else
     private async Task SaveProgress()
     {
         if (AuthStateService.CurrentUser == null) return;
-        if (communityLocked) return;
+        if (IsSurveyReadOnly) return;
         if (AuthStateService.RequiresFacilitySelection)
         {
             errorMessage = "Please select your facility first from the home page.";
             return;
         }
 
-        await SurveyService.SaveUserResponsesAsync(
-            AuthStateService.CurrentUser.Id,
-            responses,
-            AuthStateService.CurrentUser.SAMAccountName,
-            AuthStateService.SelectedFacility?.CommunityKey);
+        try
+        {
+            await SurveyService.SaveUserResponsesAsync(
+                AuthStateService.CurrentUser.Id,
+                responses,
+                AuthStateService.CurrentUser.SAMAccountName,
+                AuthStateService.SelectedFacility?.CommunityKey);
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            return;
+        }
         hasUnsavedChanges = false;
         await UpdateBeforeUnloadAsync(false);
         saveMessage = "Progress saved successfully!";
@@ -349,7 +415,7 @@ else
     private async Task SubmitSurvey()
     {
         if (AuthStateService.CurrentUser == null) return;
-        if (communityLocked) return;
+        if (IsSurveyReadOnly) return;
         if (AuthStateService.RequiresFacilitySelection)
         {
             errorMessage = "Please select your facility first from the home page.";
@@ -367,11 +433,19 @@ else
         }
 
         // Save final responses
-        await SurveyService.SaveUserResponsesAsync(
-            AuthStateService.CurrentUser.Id,
-            responses,
-            AuthStateService.CurrentUser.SAMAccountName,
-            AuthStateService.SelectedFacility?.CommunityKey);
+        try
+        {
+            await SurveyService.SaveUserResponsesAsync(
+                AuthStateService.CurrentUser.Id,
+                responses,
+                AuthStateService.CurrentUser.SAMAccountName,
+                AuthStateService.SelectedFacility?.CommunityKey);
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            return;
+        }
         hasUnsavedChanges = false;
         await UpdateBeforeUnloadAsync(false);
 
@@ -385,6 +459,27 @@ else
 
         submitted = true;
         await LogService.LogAsync("Submitted survey", AuthStateService.CurrentUser.Email);
+    }
+
+    private void OpenSubmitAndLockDialog()
+    {
+        if (IsSurveyReadOnly)
+        {
+            return;
+        }
+
+        showSubmitAndLockDialog = true;
+    }
+
+    private void CancelSubmitAndLock()
+    {
+        showSubmitAndLockDialog = false;
+    }
+
+    private async Task ConfirmSubmitAndLock()
+    {
+        showSubmitAndLockDialog = false;
+        await SubmitSurvey();
     }
 
     private List<Question> GetAllQuestions(List<Section>? sections)
@@ -433,14 +528,21 @@ else
     private async Task LeaveDialogSaveAndLeave()
     {
         showLeaveDialog = false;
-        if (AuthStateService.CurrentUser != null && !AuthStateService.RequiresFacilitySelection && !communityLocked)
+        if (AuthStateService.CurrentUser != null && !AuthStateService.RequiresFacilitySelection && !IsSurveyReadOnly)
         {
-            await SurveyService.SaveUserResponsesAsync(
-                AuthStateService.CurrentUser.Id,
-                responses,
-                AuthStateService.CurrentUser.SAMAccountName,
-                AuthStateService.SelectedFacility?.CommunityKey);
-            await LogService.LogAsync("Saved survey progress before navigation", AuthStateService.CurrentUser.Email);
+            try
+            {
+                await SurveyService.SaveUserResponsesAsync(
+                    AuthStateService.CurrentUser.Id,
+                    responses,
+                    AuthStateService.CurrentUser.SAMAccountName,
+                    AuthStateService.SelectedFacility?.CommunityKey);
+                await LogService.LogAsync("Saved survey progress before navigation", AuthStateService.CurrentUser.Email);
+            }
+            catch (InvalidOperationException)
+            {
+                // If the survey was locked in another session, continue navigation without blocking.
+            }
         }
         hasUnsavedChanges = false;
         await UpdateBeforeUnloadAsync(false);

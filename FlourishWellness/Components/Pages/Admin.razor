@@ -16,21 +16,28 @@
 <h3>Admin Panel</h3>
 
 <div style="margin-bottom: 20px;">
-    <button @onclick="@(() => activeTab = "survey")"
-            style="@(activeTab == "survey" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-radius: 4px 0 0 4px; cursor: pointer;">
-        Manage Survey
-    </button>
-    <button @onclick="@(() => activeTab = "users")"
-            style="@(activeTab == "users" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-left: none; border-right: none; cursor: pointer;">
-        Manage Users
-    </button>
-    <button @onclick="@(() => LoadLogs())"
-            style="@(activeTab == "logs" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-radius: 0 4px 4px 0; cursor: pointer;">
-        System Logs
+    @if (AuthStateService.IsAdmin)
+    {
+        <button @onclick="@(() => activeTab = "survey")"
+                style="@(activeTab == "survey" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-radius: 4px 0 0 4px; cursor: pointer;">
+            Manage Survey
+        </button>
+        <button @onclick="@(() => activeTab = "users")"
+                style="@(activeTab == "users" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-left: none; border-right: none; cursor: pointer;">
+            Manage Users
+        </button>
+        <button @onclick="@(() => LoadLogs())"
+                style="@(activeTab == "logs" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-left: none; cursor: pointer;">
+            System Logs
+        </button>
+    }
+    <button @onclick="@(() => LoadSurveyLocks())"
+            style="@(activeTab == "locks" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; @(AuthStateService.IsAdmin ? "border-left: none; border-radius: 0 4px 4px 0;" : "border-radius: 4px;") cursor: pointer;">
+        Manage Locks
     </button>
 </div>
 
-@if (activeTab == "survey")
+@if (AuthStateService.IsAdmin && activeTab == "survey")
 {
     @if (sections is null)
     {
@@ -144,7 +151,7 @@
                 </div>
             }
         }
-else if (activeTab == "users")
+else if (AuthStateService.IsAdmin && activeTab == "users")
         {
             <h4 style="margin-top: 20px;">Manage Users</h4>
 
@@ -225,7 +232,7 @@ else if (activeTab == "users")
                     </table>
                 }
             }
-else if (activeTab == "logs")
+else if (AuthStateService.IsAdmin && activeTab == "logs")
             {
                 <h4 style="margin-top: 20px;">System Logs</h4>
 
@@ -258,6 +265,110 @@ else if (activeTab == "logs")
                         {
                             <div style="margin-bottom: 5px; border-bottom: 1px solid #d1d3d5; padding-bottom: 2px;">@log</div>
                         }
+                    </div>
+                }
+            }
+else if (activeTab == "locks")
+            {
+                <h4 style="margin-top: 20px;">Manage Survey Locks</h4>
+
+                @if (!string.IsNullOrWhiteSpace(lockMessage))
+                {
+                    <div style="padding: 10px; margin-bottom: 15px; border-radius: 4px; @(lockMessageIsError ? "background-color: #fffaec; color: #5f6062;" : "background-color: #d8e2b4; color: #387c2b;")">
+                        @lockMessage
+                    </div>
+                }
+
+                <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <button @onclick='() => ChangeLockFilter("locked")'
+                            style="padding: 7px 12px; border: 1px solid #d1d3d5; border-radius: 999px; cursor: pointer; @(lockFilter == "locked" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;")">
+                        Locked
+                    </button>
+                    <button @onclick='() => ChangeLockFilter("unlocked")'
+                            style="padding: 7px 12px; border: 1px solid #d1d3d5; border-radius: 999px; cursor: pointer; @(lockFilter == "unlocked" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;")">
+                        Unlocked
+                    </button>
+                    <button @onclick='() => ChangeLockFilter("all")'
+                            style="padding: 7px 12px; border: 1px solid #d1d3d5; border-radius: 999px; cursor: pointer; @(lockFilter == "all" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;")">
+                        All
+                    </button>
+                    <button @onclick="LoadSurveyLocks"
+                            style="padding: 7px 14px; background-color: #5f6062; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        Refresh
+                    </button>
+                </div>
+
+                @if (!surveyLocks.Any())
+                {
+                    <p><em>No surveys match the current lock filter.</em></p>
+                }
+                else
+                {
+                    @foreach (var facilityGroup in surveyLocks.GroupBy(r => r.FacilityName).OrderBy(g => g.Key))
+                    {
+                        var facilityKey = facilityGroup.Key;
+                        var isExpanded = expandedLockFacilities.Contains(facilityKey);
+                        <div style="margin-bottom: 16px; padding: 14px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" @onclick="() => ToggleFacilityGroup(facilityKey)">
+                                <h5 style="margin: 0; color: #196887;">@(isExpanded ? "▼" : "▶") @facilityKey</h5>
+                                <span style="font-size: 13px; color: #5f6062;">@facilityGroup.Count() survey record(s)</span>
+                            </div>
+
+                            @if (isExpanded)
+                            {
+                                <div style="margin-top: 12px; display: grid; gap: 8px;">
+                                    @foreach (var row in facilityGroup.OrderBy(r => r.UserDisplayName))
+                                    {
+                                        var toggleId = $"lock-toggle-{row.UserId}-{row.CommunityKey?.ToString() ?? "none"}";
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 6px; background-color: white; border: 1px solid #d1d3d5;">
+                                            <div>
+                                                <div style="font-weight: 600; color: #5f6062;">@row.UserDisplayName</div>
+                                                <div style="font-size: 12px; color: #5f6062;">Community Key: @(row.CommunityKey?.ToString() ?? "N/A")</div>
+                                                <div style="font-size: 12px; color: #5f6062;">Updated: @row.LastChangedAt.ToLocalTime().ToString("g")</div>
+                                            </div>
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <span style="font-size: 12px; color: #5f6062;">@(row.IsLocked ? "Locked" : "Unlocked")</span>
+                                                <label for="@toggleId" style="position: relative; display: inline-block; width: 46px; height: 24px;">
+                                                    <input id="@toggleId"
+                                                           type="checkbox"
+                                                           checked="@row.IsLocked"
+                                                           @onchange="(e => HandleLockToggleRequest(row, e))"
+                                                           disabled="@isLockUpdateInProgress"
+                                                           style="opacity: 0; width: 0; height: 0;" />
+                                                    <span style="position: absolute; inset: 0; background-color: @(row.IsLocked ? "#387c2b" : "#b0b0b0"); border-radius: 999px;"></span>
+                                                    <span style="position: absolute; height: 18px; width: 18px; left: @(row.IsLocked ? "25px" : "3px"); bottom: 3px; background-color: white; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+
+                @if (showLockConfirmDialog)
+                {
+                    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 2500;">
+                        <div style="background: white; padding: 28px 32px; border-radius: 8px; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
+                            <h4 style="margin-top: 0; color: #196887;">Confirm Lock Change</h4>
+                            <p style="color: #5f6062; margin-bottom: 18px;">
+                                @(pendingLockState ? "Lock" : "Unlock") survey for <strong>@pendingLockUserName</strong> in <strong>@pendingLockFacilityName</strong>?
+                            </p>
+                            <p style="color: #5f6062; margin-top: 0; margin-bottom: 24px; font-size: 13px;">
+                                @(pendingLockState ? "Locking prevents editing until an admin or manager unlocks it." : "Unlocking allows the user to continue editing their survey.")
+                            </p>
+                            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <button @onclick="ConfirmLockChange"
+                                        style="padding: 8px 16px; background-color: #196887; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Confirm
+                                </button>
+                                <button @onclick="CancelLockChange"
+                                        style="padding: 8px 16px; background-color: #f6f9f7; color: #5f6062; border: 1px solid #d1d3d5; border-radius: 4px; cursor: pointer;">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 }
             }
@@ -295,6 +406,20 @@ else if (activeTab == "logs")
     private bool userMessageIsError = false;
     private Dictionary<int, UserRole> pendingUserRoles = new();
 
+    // Lock management fields
+    private List<SurveyLockRow> surveyLocks = new();
+    private string lockFilter = "locked";
+    private string lockMessage = string.Empty;
+    private bool lockMessageIsError = false;
+    private bool isLockUpdateInProgress = false;
+    private HashSet<string> expandedLockFacilities = new(StringComparer.OrdinalIgnoreCase);
+    private bool showLockConfirmDialog = false;
+    private int? pendingLockUserId;
+    private int? pendingLockCommunityKey;
+    private bool pendingLockState;
+    private string pendingLockUserName = string.Empty;
+    private string pendingLockFacilityName = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -302,16 +427,26 @@ else if (activeTab == "logs")
             await AuthStateService.InitializeAsync();
             await AuthStateService.RefreshCurrentUserAsync();
 
-            if (!AuthStateService.IsAdmin)
+            if (!(AuthStateService.IsAdmin || AuthStateService.IsManager))
             {
                 await LogService.LogAsync("Unauthorized admin page access attempt", AuthStateService.CurrentUser?.Email ?? "Unknown");
                 NavigationManager.NavigateTo("/");
                 return;
             }
 
-            await LoadSections();
-            await LoadSurveyEntities();
-            await LoadUsers();
+            if (AuthStateService.IsAdmin)
+            {
+                await LoadSections();
+                await LoadSurveyEntities();
+                await LoadUsers();
+                activeTab = "survey";
+            }
+            else
+            {
+                activeTab = "locks";
+            }
+
+            await LoadSurveyLocks();
         }
         catch (Exception ex)
         {
@@ -536,6 +671,8 @@ else if (activeTab == "logs")
 
     private async Task HandleAddSection()
     {
+        if (!AuthStateService.IsAdmin) return;
+
         if (!string.IsNullOrWhiteSpace(newSectionName))
         {
             var sec = new Section
@@ -555,6 +692,8 @@ else if (activeTab == "logs")
 
     private async Task HandleAddQuestion(int sectionId)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         if (questionTexts.TryGetValue(sectionId, out var text) && !string.IsNullOrWhiteSpace(text))
         {
             var question = new Question { SectionId = sectionId, Text = text };
@@ -576,6 +715,8 @@ else if (activeTab == "logs")
 
     private async Task SaveSectionEdit(int sectionId)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         if (!string.IsNullOrWhiteSpace(editSectionName))
         {
             var oldName = FindSectionName(sectionId);
@@ -597,6 +738,8 @@ else if (activeTab == "logs")
 
     private async Task DeleteSection(int sectionId)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         var sectionName = FindSectionName(sectionId);
         await SurveyService.DeleteSectionAsync(sectionId);
 
@@ -613,6 +756,8 @@ else if (activeTab == "logs")
 
     private async Task SaveQuestionEdit(int questionId)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         if (!string.IsNullOrWhiteSpace(editQuestionText))
         {
             await SurveyService.UpdateQuestionAsync(questionId, editQuestionText);
@@ -633,6 +778,8 @@ else if (activeTab == "logs")
 
     private async Task DeleteQuestion(int questionId)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         // Find question text before deleting (requires search)
         var questionText = FindQuestionText(questionId);
         await SurveyService.DeleteQuestionAsync(questionId);
@@ -644,6 +791,8 @@ else if (activeTab == "logs")
 
     private async Task ClearAllResponses()
     {
+        if (!AuthStateService.IsAdmin) return;
+
         clearResponsesMessage = string.Empty;
         clearResponsesMessageIsError = false;
 
@@ -675,6 +824,8 @@ else if (activeTab == "logs")
     // User Management Methods
     private async Task CreateUser()
     {
+        if (!AuthStateService.IsAdmin) return;
+
         userMessage = string.Empty;
 
         if (string.IsNullOrWhiteSpace(newUserEmail))
@@ -744,6 +895,8 @@ else if (activeTab == "logs")
 
     private async Task ApplyUserRole(int userId)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         var targetUser = users?.FirstOrDefault(u => u.Id == userId);
         if (targetUser == null)
         {
@@ -805,6 +958,136 @@ else if (activeTab == "logs")
         };
     }
 
+    private async Task LoadSurveyLocks()
+    {
+        activeTab = "locks";
+        try
+        {
+            surveyLocks = await SurveyService.GetSurveyLockRowsAsync(lockFilter);
+            if (surveyLocks.Count > 0)
+            {
+                expandedLockFacilities = surveyLocks
+                    .Select(r => r.FacilityName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+            else
+            {
+                expandedLockFacilities.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            lockMessageIsError = true;
+            lockMessage = $"Unable to load survey locks: {ex.Message}";
+            surveyLocks = new List<SurveyLockRow>();
+        }
+    }
+
+    private async Task ChangeLockFilter(string filter)
+    {
+        lockFilter = filter;
+        await LoadSurveyLocks();
+    }
+
+    private void ToggleFacilityGroup(string facilityName)
+    {
+        if (!expandedLockFacilities.Add(facilityName))
+        {
+            expandedLockFacilities.Remove(facilityName);
+        }
+    }
+
+    private void HandleLockToggleRequest(SurveyLockRow row, ChangeEventArgs e)
+    {
+        lockMessage = string.Empty;
+        lockMessageIsError = false;
+
+        var nextState = e.Value switch
+        {
+            bool b => b,
+            string s when bool.TryParse(s, out var parsed) => parsed,
+            _ => false
+        };
+        if (nextState == row.IsLocked)
+        {
+            return;
+        }
+
+        if (AuthStateService.IsManager && nextState)
+        {
+            lockMessageIsError = true;
+            lockMessage = "Managers can only unlock surveys.";
+            return;
+        }
+
+        pendingLockUserId = row.UserId;
+        pendingLockCommunityKey = row.CommunityKey;
+        pendingLockState = nextState;
+        pendingLockUserName = row.UserDisplayName;
+        pendingLockFacilityName = row.FacilityName;
+        showLockConfirmDialog = true;
+    }
+
+    private void CancelLockChange()
+    {
+        showLockConfirmDialog = false;
+        pendingLockUserId = null;
+        pendingLockCommunityKey = null;
+        pendingLockUserName = string.Empty;
+        pendingLockFacilityName = string.Empty;
+    }
+
+    private async Task ConfirmLockChange()
+    {
+        if (pendingLockUserId == null || AuthStateService.CurrentUser == null)
+        {
+            CancelLockChange();
+            return;
+        }
+
+        showLockConfirmDialog = false;
+        isLockUpdateInProgress = true;
+        lockMessage = string.Empty;
+        lockMessageIsError = false;
+
+        try
+        {
+            var changed = await SurveyService.SetSurveyLockStateAsync(
+                pendingLockUserId.Value,
+                pendingLockCommunityKey,
+                pendingLockState,
+                AuthStateService.CurrentUser.Id,
+                AuthStateService.CurrentUser.Role);
+
+            if (!changed)
+            {
+                lockMessage = "No lock state change was required.";
+            }
+            else
+            {
+                lockMessage = pendingLockState ? "Survey locked successfully." : "Survey unlocked successfully.";
+                await LogActionAsync($"{(pendingLockState ? "Locked" : "Unlocked")} survey for user {pendingLockUserId.Value}, community {(pendingLockCommunityKey?.ToString() ?? "N/A")}");
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            lockMessageIsError = true;
+            lockMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            lockMessageIsError = true;
+            lockMessage = $"Unable to apply lock state: {ex.Message}";
+        }
+        finally
+        {
+            CancelLockChange();
+            isLockUpdateInProgress = false;
+            await LoadSurveyLocks();
+        }
+    }
+
     private async Task LogActionAsync(string action)
     {
         var email = AuthStateService.CurrentUser?.Email ?? "Unknown";
@@ -813,6 +1096,8 @@ else if (activeTab == "logs")
 
     private async Task LoadLogs()
     {
+        if (!AuthStateService.IsAdmin) return;
+
         activeTab = "logs";
         availableLogDates = LogService.GetAvailableLogDates();
         if (!availableLogDates.Contains(DateTime.Today))
@@ -831,6 +1116,8 @@ else if (activeTab == "logs")
 
     private async Task OnLogDateChanged(ChangeEventArgs e)
     {
+        if (!AuthStateService.IsAdmin) return;
+
         if (DateTime.TryParse(e.Value?.ToString(), out var date))
         {
             selectedLogDate = date;
