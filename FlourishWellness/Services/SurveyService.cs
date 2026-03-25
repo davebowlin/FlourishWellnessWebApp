@@ -320,6 +320,10 @@ namespace FlourishWellness.Services
                 .Where(s => s.SurveyYearId == activeYear.Year)
                 .ToListAsync();
 
+            var totalQuestionCount = await context.Questions
+                .Where(q => q.SurveyYearId == activeYear.Year)
+                .CountAsync();
+
             var keySet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var responseRow in responseRows)
             {
@@ -368,6 +372,22 @@ namespace FlourishWellness.Services
                 .Where(c => userIds.Contains(c.Id) || communityKeys.Contains(c.CommunityKey))
                 .ToListAsync();
 
+            var distinctAnsweredCounts = await context.Responses
+                .Where(r => r.SurveyYearId == activeYear.Year && !string.IsNullOrWhiteSpace(r.Answer))
+                .GroupBy(r => new { r.UserId, r.CommunityKey })
+                .Select(g => new
+                {
+                    g.Key.UserId,
+                    g.Key.CommunityKey,
+                    AnsweredCount = g.Select(r => r.QuestionId).Distinct().Count()
+                })
+                .ToListAsync();
+
+            var answeredCountByKey = distinctAnsweredCounts.ToDictionary(
+                r => BuildCompletionKey(r.UserId, r.CommunityKey),
+                r => r.AnsweredCount,
+                StringComparer.OrdinalIgnoreCase);
+
             var rows = new List<SurveyLockRow>();
 
             foreach (var key in keySet)
@@ -399,6 +419,8 @@ namespace FlourishWellness.Services
                     FacilityName = facilityName,
                     IsLocked = isLocked,
                     LastChangedAt = lastChangedAt,
+                    AnsweredQuestionCount = answeredCountByKey.GetValueOrDefault(key),
+                    TotalQuestionCount = totalQuestionCount,
                     UserDisplayName = !string.IsNullOrWhiteSpace(user?.FullName)
                         ? user!.FullName
                         : user?.Email ?? $"User {userId}"
