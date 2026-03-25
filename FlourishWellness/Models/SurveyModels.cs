@@ -131,4 +131,17 @@
         public string NewAnswer { get; set; } = string.Empty;
         public DateTime ChangedAt { get; set; }
     }
+
+    public class SurveyLockAuditLog
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int ActorUserId { get; set; }
+        public string ActorDisplayName { get; set; } = string.Empty;
+        public UserRole ActorRole { get; set; }
+        public int SurveyYearId { get; set; }
+        public int? CommunityKey { get; set; }
+        public bool NewLockState { get; set; }
+        public DateTime ActionAt { get; set; } = TimeHelper.CstNow;
+    }
 }
