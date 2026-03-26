@@ -35,7 +35,10 @@
                     {
                         <a href="/results" class="nav-link">View Results</a>
                     }
-                    <a href="/survey" class="nav-link">Take Survey</a>
+                    @if (!AuthStateService.RequiresFacilitySelection)
+                    {
+                        <a href="/survey" class="nav-link">Take Survey</a>
+                    }
                 </div>
 
                 <div class="nav-user">
