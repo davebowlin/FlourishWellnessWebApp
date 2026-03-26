@@ -61,20 +61,34 @@ else
                             <div style="margin: 0 0 10px 0; color: #5f6062; font-weight: 600;">@summary.QuestionText</div>
                             <p style="margin: 0 0 14px 0; color: #5f6062;"><strong>@summary.TotalResponses</strong> completed response(s)</p>
 
-                            @foreach (var option in AnswerOptions)
-                            {
-                                var count = summary.Counts.GetValueOrDefault(option.Label, 0);
-                                var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0);
-                                <div style="margin-bottom: 12px;">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #5f6062; font-size: 14px;">
-                                        <span>@option.Label</span>
-                                        <span>@count (@percentage.ToString("0.0")%)</span>
+                            <div style="margin-bottom: 12px;">
+                                <div style="height: 26px; background-color: #e9eeea; border-radius: 999px; overflow: hidden; display: flex;">
+                                    @foreach (var option in AnswerOptions)
+                                    {
+                                        var count = summary.Counts.GetValueOrDefault(option.Label, 0);
+                                        var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0d);
+                                        var label = $"{percentage:0.#}%";
+                                        <div title="@($"{option.Label}: {count} ({percentage:0.0}%)")"
+                                             style="height: 100%; width: @FormatPercentForWidth(percentage); background-color: @option.Color; display: flex; align-items: center; justify-content: center; color: #1f1f1f; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: clip;">
+                                            @if (percentage >= 12d)
+                                            {
+                                                @label
+                                            }
                                     </div>
-                                    <div style="height: 18px; background-color: #e9eeea; border-radius: 999px; overflow: hidden;">
-                                        <div style="height: 100%; width: @percentage.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%; background-color: @option.Color;"></div>
-                                    </div>
+                                    }
                                 </div>
-                            }
+                                <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; color: #5f6062; font-size: 13px;">
+                                    @foreach (var option in AnswerOptions)
+                                    {
+                                        var count = summary.Counts.GetValueOrDefault(option.Label, 0);
+                                        var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0d);
+                                        <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                            <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background-color: @option.Color;"></span>
+                                            @option.Label (@count, @percentage.ToString("0.0")%)
+                                        </span>
+                                    }
+                                </div>
+                            </div>
                         </div>
                     }
                 </div>
@@ -262,6 +276,11 @@ else
         var fileName = $"SurveyResults_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
 
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private static string FormatPercentForWidth(double percent)
+    {
+        return $"{percent.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}%";
     }
 
     private sealed class QuestionSummaryRow
