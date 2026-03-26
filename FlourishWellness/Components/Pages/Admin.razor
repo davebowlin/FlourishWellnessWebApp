@@ -156,7 +156,7 @@ else if (AuthStateService.IsAdmin && activeTab == "users")
             <h4 style="margin-top: 20px;">Manage Users</h4>
 
             <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
-                <h5>Add New User</h5>
+                <h5>Delete User</h5>
                 @if (!string.IsNullOrEmpty(userMessage))
                 {
                     <div style="padding: 10px; margin-bottom: 15px; border-radius: 4px; @(userMessageIsError ? "background-color: #fffaec; color: #5f6062;" : "background-color: #d8e2b4; color: #387c2b;")">
@@ -164,24 +164,38 @@ else if (AuthStateService.IsAdmin && activeTab == "users")
                     </div>
                 }
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end;">
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px;">Email / Username</label>
-                        <input @bind="newUserEmail" placeholder="americare.org\username" autocomplete="off"
-                               style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px;">Role</label>
-                        <select @bind="newUserRole" style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;">
-                            <option value="@UserRole.Employee">Employee</option>
-                            <option value="@UserRole.Manager">Manager</option>
-                            <option value="@UserRole.Admin">Admin</option>
+                        <label style="display: block; margin-bottom: 5px; font-size: 14px;">Select user to delete</label>
+                        <select @bind="selectedUserIdForDeletion" style="width: 100%; padding: 8px; border: 1px solid #d1d3d5; border-radius: 4px;">
+                            <option value="">-- Select User --</option>
+                            @if (users != null)
+                            {
+                                @foreach (var user in users.OrderBy(u => u.Email))
+                                {
+                                    <option value="@user.Id">@user.Email (@user.Role)</option>
+                                }
+                            }
                         </select>
                     </div>
-                    <button @onclick="CreateUser"
-                            style="padding: 8px 20px; background-color: #439539; color: white; border: none; border-radius: 4px; cursor: pointer; height: 35px;">Create
-                        User</button>
+                    <button @onclick="DeleteSelectedUser"
+                            disabled="@(!CanDeleteSelectedUser())"
+                            style="padding: 8px 20px; background-color: @(CanDeleteSelectedUser() ? "#387c2b" : "#b0b0b0"); color: white; border: none; border-radius: 4px; cursor: @(CanDeleteSelectedUser() ? "pointer" : "not-allowed"); height: 35px;">
+                        Delete User
+                    </button>
+                </div>
+
+                @if (GetSelectedUserForDeletion() is User selectedUser)
+                {
+                    <div style="margin-top: 12px; padding: 12px; border: 1px dashed #d1d3d5; border-radius: 6px; background-color: white;">
+                        <div style="font-size: 13px; color: #5f6062; margin-bottom: 4px;"><strong>Selected:</strong> @selectedUser.Email</div>
+                        <div style="font-size: 13px; color: #5f6062; margin-bottom: 4px;"><strong>Name:</strong> @(string.IsNullOrWhiteSpace(selectedUser.FullName) ? "N/A" : selectedUser.FullName)</div>
+                        <div style="font-size: 13px; color: #5f6062;"><strong>Role:</strong> @selectedUser.Role</div>
+                        <div style="margin-top: 10px; font-size: 13px; color: #5f6062;">
+                            This will delete the account and related responses, survey statuses, and facility mappings for this user.
+                        </div>
                     </div>
+                }
                 </div>
 
                 @if (users is null)
@@ -342,10 +356,11 @@ else if (activeTab == "locks")
                                                     var rowPercentComplete = row.TotalQuestionCount == 0
                                                         ? 0
                                                         : (int)Math.Round((double)row.AnsweredQuestionCount * 100 / row.TotalQuestionCount, MidpointRounding.AwayFromZero);
+                                                    var rowProgressColor = rowPercentComplete == 100 ? "#387c2b" : "#ebbc4d";
                                                 }
-                                                <div style="margin-top: 6px; max-width: 260px;">
+                                                <div style="margin-top: 6px; width: 260px;">
                                                     <div style="position: relative; height: 14px; border-radius: 999px; overflow: hidden; background-color: #d1d3d5; border: 1px solid #c3c6c8;">
-                                                        <div style="height: 100%; width: @rowPercentComplete%; background-color: #387c2b;"></div>
+                                                        <div style="height: 100%; width: @rowPercentComplete%; background-color: @rowProgressColor;"></div>
                                                         <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #1f1f1f;">@rowPercentComplete%</div>
                                                     </div>
                                                 </div>
@@ -424,8 +439,7 @@ else if (activeTab == "locks")
     private bool clearResponsesMessageIsError = false;
 
     // User management fields
-    private string newUserEmail = string.Empty;
-    private UserRole newUserRole = UserRole.Employee;
+    private string selectedUserIdForDeletion = string.Empty;
     private string userMessage = string.Empty;
     private bool userMessageIsError = false;
     private Dictionary<int, UserRole> pendingUserRoles = new();
@@ -846,50 +860,112 @@ else if (activeTab == "locks")
     }
 
     // User Management Methods
-    private async Task CreateUser()
+    private User? GetSelectedUserForDeletion()
+    {
+        if (!int.TryParse(selectedUserIdForDeletion, out var userId))
+        {
+            return null;
+        }
+
+        return users?.FirstOrDefault(u => u.Id == userId);
+    }
+
+    private bool CanDeleteSelectedUser()
+    {
+        var selectedUser = GetSelectedUserForDeletion();
+        var currentUserId = AuthStateService.CurrentUser?.Id;
+        if (selectedUser == null)
+        {
+            return false;
+        }
+
+        if (currentUserId.HasValue && selectedUser.Id == currentUserId.Value)
+        {
+            return false;
+        }
+
+        return !string.Equals(selectedUser.Email, "admin", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task DeleteSelectedUser()
     {
         if (!AuthStateService.IsAdmin) return;
 
         userMessage = string.Empty;
+        userMessageIsError = false;
 
-        if (string.IsNullOrWhiteSpace(newUserEmail))
+        var selectedUser = GetSelectedUserForDeletion();
+        if (selectedUser == null)
         {
-            userMessage = "Email/Username is required.";
+            userMessage = "Please select a user to delete.";
             userMessageIsError = true;
             return;
         }
 
-        var result = await AuthService.CreateUserAsync(newUserEmail, newUserRole);
-
-        if (result != null)
+        if (AuthStateService.CurrentUser?.Id == selectedUser.Id)
         {
-            await LogActionAsync($"Created user '{newUserEmail}' with role '{newUserRole}'");
-
-            userMessage = "User created successfully!";
-            userMessageIsError = false;
-            newUserEmail = string.Empty;
-            newUserRole = UserRole.Employee;
-            await LoadUsers();
+            userMessage = "You cannot delete your own account.";
+            userMessageIsError = true;
+            return;
         }
-        else
+
+        if (string.Equals(selectedUser.Email, "admin", StringComparison.OrdinalIgnoreCase))
         {
-            userMessage = "Failed to create user. Email may already exist.";
+            userMessage = "The default admin account cannot be deleted.";
+            userMessageIsError = true;
+            return;
+        }
+
+        await LogActionAsync($"Delete user requested for '{selectedUser.Email}' (Id: {selectedUser.Id})");
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Delete user '{selectedUser.Email}' and all related data (responses, survey statuses, and facility mappings)? This cannot be undone.");
+
+        if (!confirmed)
+        {
+            await LogActionAsync($"Delete user canceled for '{selectedUser.Email}' (Id: {selectedUser.Id})");
+            userMessage = "Delete operation canceled.";
+            userMessageIsError = false;
+            return;
+        }
+
+        var typedEmail = await JSRuntime.InvokeAsync<string?>(
+            "prompt",
+            $"Type the user's email to confirm deletion:\n\n{selectedUser.Email}");
+        if (string.IsNullOrWhiteSpace(typedEmail) || !string.Equals(typedEmail.Trim(), selectedUser.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            await LogActionAsync($"Delete user typed-verification failed for '{selectedUser.Email}' (Id: {selectedUser.Id})");
+            userMessage = "Deletion canceled. The typed email did not match.";
+            userMessageIsError = true;
+            return;
+        }
+
+        try
+        {
+            var deleteResult = await AuthService.DeleteUserWithRelatedDataAsync(selectedUser.Id);
+            if (deleteResult.Success)
+            {
+                await LogActionAsync($"Deleted user '{selectedUser.Email}' (Id: {selectedUser.Id}); responses={deleteResult.DeletedResponses}, statuses={deleteResult.DeletedStatuses}, communities={deleteResult.DeletedCommunities}");
+                userMessage = $"Deleted '{selectedUser.Email}'. Removed {deleteResult.DeletedResponses} response(s), {deleteResult.DeletedStatuses} survey status row(s), and {deleteResult.DeletedCommunities} facility mapping row(s).";
+                userMessageIsError = false;
+                selectedUserIdForDeletion = string.Empty;
+                await LoadUsers();
+            }
+            else
+            {
+                await LogActionAsync($"Failed to delete user '{selectedUser.Email}' (Id: {selectedUser.Id}): {deleteResult.Message}");
+                userMessage = $"Unable to delete user: {deleteResult.Message}";
+                userMessageIsError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            await LogActionAsync($"Delete user exception for '{selectedUser.Email}' (Id: {selectedUser.Id}): {ex.Message}");
+            userMessage = $"Unable to delete user: {ex.Message}";
             userMessageIsError = true;
         }
     }
-
-    // Disabled the DeleteUser method for now; we want to preserve all db data.
-@*     private async Task DeleteUser(int userId)
-    {
-        var userToDelete = users?.FirstOrDefault(u => u.Id == userId);
-        var userEmail = userToDelete?.Email ?? "Unknown";
-
-        if (await AuthService.DeleteUserAsync(userId))
-        {
-            await LogActionAsync($"Deleted user '{userEmail}'");
-            await LoadUsers();
-        }
-    } *@
 
     private UserRole GetPendingRole(int userId)
     {

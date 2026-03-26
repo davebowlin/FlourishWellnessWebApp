@@ -60,3 +60,44 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.fw-accordion-panel {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid var(--fw-border);
+    border-radius: 8px;
+    background-color: var(--fw-surface);
+}
+
+.fw-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 0;
+}
+
+.fw-accordion-title {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--fw-text);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.fw-accordion-chevron {
+    font-size: 14px;
+    color: var(--fw-primary);
+}
+
+.fw-accordion-meta {
+    font-size: 13px;
+    color: var(--fw-text);
+}
+
+.fw-accordion-body {
+    margin-top: 12px;
+}

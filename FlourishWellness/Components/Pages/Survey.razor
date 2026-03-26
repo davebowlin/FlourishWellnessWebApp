@@ -225,19 +225,19 @@ else
         var isExpanded = expandedSectionIds.Contains(sec.Id);
 
         builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "style", $"margin: 30px 0 30px {marginLeft}px; padding: 20px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;");
+        builder.AddAttribute(1, "class", "fw-accordion-panel");
+        builder.AddAttribute(2, "style", $"margin-left: {marginLeft}px;");
 
-        builder.OpenElement(2, "button");
-        builder.AddAttribute(3, "type", "button");
-        builder.AddAttribute(4, "onclick", EventCallback.Factory.Create(this, () => ToggleSection(sec.Id)));
-        builder.AddAttribute(5, "style", "width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 0 10px 0; margin: 0 0 20px 0; background: transparent; border: none; border-bottom: 2px solid #196887; color: #5f6062; cursor: pointer; text-align: left;");
-        builder.OpenElement(6, "span");
-        builder.AddAttribute(7, "style", "font-size: 1.1rem; font-weight: 600;");
-        builder.AddContent(8, level > 0 ? $"{sec.Name}" : sec.Name);
+        builder.OpenElement(3, "div");
+        builder.AddAttribute(4, "class", "fw-accordion-header");
+        builder.AddAttribute(5, "onclick", EventCallback.Factory.Create(this, () => ToggleSection(sec.Id)));
+        builder.OpenElement(6, "h4");
+        builder.AddAttribute(7, "class", "fw-accordion-title");
+        builder.OpenElement(8, "span");
+        builder.AddAttribute(9, "class", "fw-accordion-chevron");
+        builder.AddContent(10, isExpanded ? "▼" : "▶");
         builder.CloseElement();
-        builder.OpenElement(9, "span");
-        builder.AddAttribute(10, "style", "font-size: 1.1rem; color: #196887;");
-        builder.AddContent(11, isExpanded ? "-" : "+");
+        builder.AddContent(11, sec.Name);
         builder.CloseElement();
         builder.CloseElement();
 
