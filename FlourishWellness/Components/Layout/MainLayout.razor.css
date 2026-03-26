@@ -139,6 +139,42 @@
     border-left: 1px solid rgba(255,255,255,0.3);
 }
 
+.facility-chip {
+    color: white;
+    background-color: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.28);
+    border-radius: 4px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.facility-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.facility-switcher label {
+    color: white;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.facility-switcher select {
+    background-color: rgba(255,255,255,0.16);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 4px;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.9rem;
+    min-width: 220px;
+}
+
+.facility-switcher select option {
+    color: #1f1f1f;
+}
+
 .btn-logout {
     color: white;
     background-color: rgba(255,255,255,0.2);
@@ -240,6 +276,14 @@ footer {
         border-left: none;
         border-top: 1px solid rgba(255,255,255,0.3);
         text-align: center;
+    }
+
+    .facility-switcher {
+        justify-content: center;
+    }
+
+    .facility-switcher select {
+        min-width: 100%;
     }
 
     .nav-link, .btn-logout {

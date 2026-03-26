@@ -9,6 +9,16 @@ namespace FlourishWellness.Services
 {
     public class AuthService
     {
+        public sealed class DeleteUserResult
+        {
+            public bool Success { get; set; }
+            public string Message { get; set; } = string.Empty;
+            public string DeletedUserEmail { get; set; } = string.Empty;
+            public int DeletedResponses { get; set; }
+            public int DeletedStatuses { get; set; }
+            public int DeletedCommunities { get; set; }
+        }
+
         private readonly IDbContextFactory<AppDbContext> _factory;
         private readonly LogService _logService;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -143,16 +153,56 @@ namespace FlourishWellness.Services
                 .ToListAsync();
         }
 
-        public async Task<bool> DeleteUserAsync(int userId)
+        public async Task<DeleteUserResult> DeleteUserWithRelatedDataAsync(int userId)
         {
             using var context = await _factory.CreateDbContextAsync();
-            var user = await context.Users.FindAsync(userId);
-            if (user == null)
-                return false;
+            await using var transaction = await context.Database.BeginTransactionAsync();
 
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return new DeleteUserResult
+                {
+                    Success = false,
+                    Message = "User not found."
+                };
+            }
+
+            var responses = await context.Responses
+                .Where(r => r.UserId == userId)
+                .ToListAsync();
+
+            var statuses = await context.UserSurveyStatuses
+                .Where(s => s.UserId == userId)
+                .ToListAsync();
+
+            var communities = await context.Community
+                .Where(c => c.Id == userId)
+                .ToListAsync();
+
+            context.Responses.RemoveRange(responses);
+            context.UserSurveyStatuses.RemoveRange(statuses);
+            context.Community.RemoveRange(communities);
             context.Users.Remove(user);
+
             await context.SaveChangesAsync();
-            return true;
+            await transaction.CommitAsync();
+
+            return new DeleteUserResult
+            {
+                Success = true,
+                Message = "User and related records were deleted successfully.",
+                DeletedUserEmail = user.Email,
+                DeletedResponses = responses.Count,
+                DeletedStatuses = statuses.Count,
+                DeletedCommunities = communities.Count
+            };
+        }
+
+        public async Task<bool> DeleteUserAsync(int userId)
+        {
+            var result = await DeleteUserWithRelatedDataAsync(userId);
+            return result.Success;
         }
 
         public async Task<bool> UpdateUserRoleAsync(int userId, UserRole role)

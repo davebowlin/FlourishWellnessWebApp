@@ -39,25 +39,44 @@ else
         </button>
     </div>
 
-    @foreach (var summary in questionSummaries)
+    @foreach (var group in groupedSummaries)
     {
-        <div style="margin: 20px 0; padding: 16px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
-            <h4 style="margin: 0 0 6px 0; color: #196887;">@summary.SectionPath</h4>
-            <h5 style="margin: 0 0 10px 0; color: #5f6062;">@summary.QuestionText</h5>
-            <p style="margin: 0 0 14px 0; color: #5f6062;"><strong>@summary.TotalResponses</strong> completed response(s)</p>
+        var isExpanded = expandedTopSections.Contains(group.TopSectionName);
+        <div class="fw-accordion-panel">
+            <div class="fw-accordion-header" @onclick="@(() => ToggleTopSection(group.TopSectionName))">
+                <h4 class="fw-accordion-title">
+                    <span class="fw-accordion-chevron">@(isExpanded ? "▼" : "▶")</span>
+                    @group.TopSectionName
+                </h4>
+                <span class="fw-accordion-meta">@group.QuestionSummaries.Count question summary item(s)</span>
+            </div>
 
-            @foreach (var option in AnswerOptions)
+            @if (isExpanded)
             {
-                var count = summary.Counts.GetValueOrDefault(option.Label, 0);
-                var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0);
-                <div style="margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #5f6062; font-size: 14px;">
-                        <span>@option.Label</span>
-                        <span>@count (@percentage.ToString("0.0")%)</span>
-                    </div>
-                    <div style="height: 18px; background-color: #e9eeea; border-radius: 999px; overflow: hidden;">
-                        <div style="height: 100%; width: @percentage.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%; background-color: @option.Color;"></div>
-                    </div>
+                <div class="fw-accordion-body">
+                    @foreach (var summary in group.QuestionSummaries)
+                    {
+                        <div style="margin: 12px 0; padding: 16px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: white;">
+                            <h5 style="margin: 0 0 6px 0; color: #196887;">@summary.SectionPath</h5>
+                            <div style="margin: 0 0 10px 0; color: #5f6062; font-weight: 600;">@summary.QuestionText</div>
+                            <p style="margin: 0 0 14px 0; color: #5f6062;"><strong>@summary.TotalResponses</strong> completed response(s)</p>
+
+                            @foreach (var option in AnswerOptions)
+                            {
+                                var count = summary.Counts.GetValueOrDefault(option.Label, 0);
+                                var percentage = summary.Percentages.GetValueOrDefault(option.Label, 0);
+                                <div style="margin-bottom: 12px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #5f6062; font-size: 14px;">
+                                        <span>@option.Label</span>
+                                        <span>@count (@percentage.ToString("0.0")%)</span>
+                                    </div>
+                                    <div style="height: 18px; background-color: #e9eeea; border-radius: 999px; overflow: hidden;">
+                                        <div style="height: 100%; width: @percentage.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%; background-color: @option.Color;"></div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             }
         </div>
@@ -67,6 +86,8 @@ else
 @code {
     private List<Section>? sections;
     private List<QuestionSummaryRow> questionSummaries = new();
+    private List<TopSectionSummaryGroup> groupedSummaries = new();
+    private HashSet<string> expandedTopSections = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly List<AnswerOptionColor> AnswerOptions = new()
     {
@@ -109,12 +130,26 @@ else
                 sections = new List<Section>();
             }
             questionSummaries = BuildQuestionSummaries(sections);
+            groupedSummaries = BuildTopSectionGroups(questionSummaries);
+            expandedTopSections = groupedSummaries
+                .Select(g => g.TopSectionName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex)
         {
             await LogService.LogAsync($"Error loading results: {ex.Message}", "System");
             sections = new List<Section>();
             questionSummaries = new List<QuestionSummaryRow>();
+            groupedSummaries = new List<TopSectionSummaryGroup>();
+            expandedTopSections.Clear();
+        }
+    }
+
+    private void ToggleTopSection(string topSectionName)
+    {
+        if (!expandedTopSections.Add(topSectionName))
+        {
+            expandedTopSections.Remove(topSectionName);
         }
     }
 
@@ -134,7 +169,7 @@ else
     {
         var summaries = new List<QuestionSummaryRow>();
 
-        void Traverse(Section section, string parentPath)
+        void Traverse(Section section, string parentPath, string topSectionName)
         {
             var sectionPath = string.IsNullOrWhiteSpace(parentPath)
                 ? section.Name
@@ -164,6 +199,7 @@ else
 
                 summaries.Add(new QuestionSummaryRow
                 {
+                    TopSectionName = topSectionName,
                     SectionPath = sectionPath,
                     QuestionText = question.Text,
                     TotalResponses = total,
@@ -174,16 +210,34 @@ else
 
             foreach (var subsection in section.Subsections)
             {
-                Traverse(subsection, sectionPath);
+                Traverse(subsection, sectionPath, topSectionName);
             }
         }
 
         foreach (var root in roots)
         {
-            Traverse(root, string.Empty);
+            Traverse(root, string.Empty, root.Name);
         }
 
         return summaries;
+    }
+
+    private static List<TopSectionSummaryGroup> BuildTopSectionGroups(List<QuestionSummaryRow> summaries)
+    {
+        return summaries
+            .GroupBy(
+                s => s.TopSectionName,
+                StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new TopSectionSummaryGroup
+            {
+                TopSectionName = g.Key,
+                QuestionSummaries = g
+                    .OrderBy(x => x.SectionPath, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.QuestionText, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            })
+            .ToList();
     }
 
     private async Task ExportToCSV()
@@ -212,11 +266,18 @@ else
 
     private sealed class QuestionSummaryRow
     {
+        public string TopSectionName { get; set; } = string.Empty;
         public string SectionPath { get; set; } = string.Empty;
         public string QuestionText { get; set; } = string.Empty;
         public int TotalResponses { get; set; }
         public Dictionary<string, int> Counts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> Percentages { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class TopSectionSummaryGroup
+    {
+        public string TopSectionName { get; set; } = string.Empty;
+        public List<QuestionSummaryRow> QuestionSummaries { get; set; } = new();
     }
 
     private sealed class AnswerOptionColor

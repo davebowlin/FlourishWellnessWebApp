@@ -1,4 +1,4 @@
-﻿@using FlourishWellness.Services
+@using FlourishWellness.Services
 @using FlourishWellness.Models
 @using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
@@ -7,6 +7,7 @@
 @inject ADUserService ADUserService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AuthStateService AuthStateService
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <div class="page">
@@ -42,6 +43,27 @@
                 </div>
 
                 <div class="nav-user">
+                    @if (AuthStateService.IsAuthenticated && AuthStateService.ADFacilities.Count > 0)
+                    {
+                        @if (AuthStateService.ADFacilities.Count == 1)
+                        {
+                            <span class="facility-chip">Facility: @AuthStateService.ADFacilities[0].Facility</span>
+                        }
+                        else
+                        {
+                            <div class="facility-switcher">
+                                <label for="facility-select">Facility:</label>
+                                <select id="facility-select" value="@selectedFacilityValue" @onchange="HandleFacilitySelectionChanged">
+                                    @foreach (var facility in AuthStateService.ADFacilities)
+                                    {
+                                        <option value="@BuildFacilityOptionValue(facility)">
+                                            @facility.Facility (@(string.IsNullOrWhiteSpace(facility.CommunityKey) ? "N/A" : facility.CommunityKey))
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                    }
                     <span class="user-email">@displayUserName</span>
                     @if (showDefaultAdminLogout)
                     {
@@ -74,6 +96,7 @@
     private bool canAccessAdmin;
     private bool canViewResults;
     private bool showDefaultAdminLogout;
+    private string selectedFacilityValue = string.Empty;
     private string? NavMenuCssClass => collapseNavMenu ? "nav-menu collapse" : "nav-menu";
 
     private void ToggleNavMenu()
@@ -115,6 +138,7 @@
             canAccessAdmin = currentUser.Role == UserRole.Admin;
             canViewResults = currentUser.Role == UserRole.Admin || currentUser.Role == UserRole.Manager;
             showDefaultAdminLogout = string.Equals(currentUser.Email, "admin", StringComparison.OrdinalIgnoreCase);
+            selectedFacilityValue = BuildFacilityOptionValue(AuthStateService.SelectedFacility);
             return;
         }
 
@@ -134,6 +158,63 @@
         canAccessAdmin = false;
         canViewResults = false;
         showDefaultAdminLogout = false;
+        selectedFacilityValue = string.Empty;
+    }
+
+    private static string BuildFacilityOptionValue(ADFacilityUser? facility)
+    {
+        if (facility == null)
+        {
+            return string.Empty;
+        }
+
+        return $"{facility.Facility}|{facility.CommunityKey ?? string.Empty}";
+    }
+
+    private async Task HandleFacilitySelectionChanged(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        var parts = raw.Split('|', 2);
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        var facility = parts[0];
+        var communityKey = parts[1];
+        var currentValue = BuildFacilityOptionValue(AuthStateService.SelectedFacility);
+        if (string.Equals(raw, currentValue, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var onSurveyPage = currentPath.StartsWith("survey", StringComparison.OrdinalIgnoreCase);
+
+        if (onSurveyPage)
+        {
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                "Switching facility will reload the survey context. Continue?");
+            if (!confirmed)
+            {
+                selectedFacilityValue = currentValue;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
+
+        await AuthStateService.SetSelectedFacilityAsync(facility, string.IsNullOrWhiteSpace(communityKey) ? null : communityKey);
+        selectedFacilityValue = BuildFacilityOptionValue(AuthStateService.SelectedFacility);
+
+        if (onSurveyPage)
+        {
+            NavigationManager.NavigateTo("/survey", forceLoad: true);
+        }
     }
 
     private async Task LogoutAsync()
