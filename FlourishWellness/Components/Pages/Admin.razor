@@ -329,7 +329,10 @@ else if (activeTab == "locks")
                             : (int)Math.Round((double)facilityAnsweredCount * 100 / facilityTotalCount, MidpointRounding.AwayFromZero);
                         <div style="margin-bottom: 16px; padding: 14px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
                             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" @onclick="() => ToggleFacilityGroup(facilityKey)">
-                                <h5 style="margin: 0; color: #196887;">@(isExpanded ? "▼" : "▶") @facilityKey</h5>
+                                <h5 style="margin: 0; color: #196887; display: flex; align-items: center; gap: 8px;">
+                                    <span class="fw-accordion-chevron">@(isExpanded ? "▼" : "▶")</span>
+                                    @facilityKey
+                                </h5>
                                 <span style="font-size: 13px; color: #5f6062;">@facilityGroup.Count() survey record(s)</span>
                             </div>
 
@@ -626,7 +629,7 @@ else if (activeTab == "locks")
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; cursor: pointer; user-select: none;"
                  @onclick="@(() => ToggleSection(sectionId))">
                 <h4 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 14px;">@(isExpanded ? "▼" : "▶")</span>
+                    <span class="fw-accordion-chevron">@(isExpanded ? "▼" : "▶")</span>
                     @(level > 0 ? $"↳ {sec.Name}" : sec.Name)
                 </h4>
             </div>

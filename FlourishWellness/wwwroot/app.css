@@ -91,6 +91,19 @@ h1:focus {
 .fw-accordion-chevron {
     font-size: 14px;
     color: var(--fw-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    margin-right: 0.2rem;
+    border-radius: 999px;
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.fw-accordion-chevron:hover {
+    background-color: rgba(25, 104, 135, 0.12);
+    box-shadow: 0 0 0 5px rgba(25, 104, 135, 0.18);
 }
 
 .fw-accordion-meta {

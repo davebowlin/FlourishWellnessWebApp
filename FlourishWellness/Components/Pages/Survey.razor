@@ -60,7 +60,15 @@ else
         </div>
     }
 
-    @foreach (var sec in sections)
+    <div style="margin-bottom: 12px;">
+        <button @onclick="ToggleAllSections"
+                disabled="@(sections == null || !sections.Any())"
+                style="padding: 8px 16px; background-color: #196887; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: @((sections == null || !sections.Any()) ? "not-allowed" : "pointer"); opacity: @((sections == null || !sections.Any()) ? "0.7" : "1");">
+            @(AreAllSectionsExpanded ? "Collapse All Sections" : "Expand All Sections")
+        </button>
+    </div>
+
+    @foreach (var sec in sections!)
     {
         @RenderSectionSurvey(sec, 0)
     }
@@ -138,6 +146,19 @@ else
     private string pendingNavigationUrl = string.Empty;
     private HashSet<int> expandedSectionIds = new();
     private IDisposable? _locationChangingReg;
+    private bool AreAllSectionsExpanded
+    {
+        get
+        {
+            if (sections == null || !sections.Any())
+            {
+                return false;
+            }
+
+            var allIds = GetAllSectionIds(sections);
+            return allIds.Count > 0 && allIds.All(id => expandedSectionIds.Contains(id));
+        }
+    }
 
     private bool IsSurveyReadOnly => communityLocked || submitted;
 
@@ -217,6 +238,21 @@ else
         {
             InitializeResponses(subsec);
         }
+    }
+
+    private static List<int> GetAllSectionIds(IEnumerable<Section> sectionList)
+    {
+        var ids = new List<int>();
+        foreach (var sec in sectionList)
+        {
+            ids.Add(sec.Id);
+            if (sec.Subsections.Any())
+            {
+                ids.AddRange(GetAllSectionIds(sec.Subsections));
+            }
+        }
+
+        return ids;
     }
 
     private RenderFragment RenderSectionSurvey(Section sec, int level) => builder =>
@@ -365,6 +401,30 @@ else
         if (!expandedSectionIds.Add(sectionId))
         {
             expandedSectionIds.Remove(sectionId);
+        }
+    }
+
+    private void ToggleAllSections()
+    {
+        if (sections == null || !sections.Any())
+        {
+            return;
+        }
+
+        var allSectionIds = GetAllSectionIds(sections);
+        if (allSectionIds.Count == 0)
+        {
+            expandedSectionIds.Clear();
+            return;
+        }
+
+        if (allSectionIds.All(id => expandedSectionIds.Contains(id)))
+        {
+            expandedSectionIds.Clear();
+        }
+        else
+        {
+            expandedSectionIds = allSectionIds.ToHashSet();
         }
     }
 
