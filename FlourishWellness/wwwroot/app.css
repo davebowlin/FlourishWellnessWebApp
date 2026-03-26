@@ -102,8 +102,9 @@ h1:focus {
 }
 
 .fw-accordion-chevron:hover {
-    background-color: rgba(25, 104, 135, 0.12);
-    box-shadow: 0 0 0 5px rgba(25, 104, 135, 0.18);
+    background-color: rgba(235, 188, 77, 0.18);
+    box-shadow: 0 0 0 5px rgba(235, 188, 77, 0.28);
+    cursor: pointer;
 }
 
 .fw-accordion-meta {
