@@ -14,6 +14,17 @@
 
 <PageTitle>FlourishWellness Survey</PageTitle>
 
+<!-- Floating Progress Bar -->
+<div style="position: fixed; top: 14px; right: 16px; width: 220px; padding: 8px 10px; background-color: #f6f9f7; border: 1px solid #d1d3d5; border-radius: 8px; z-index: 1001; box-shadow: 0 2px 8px rgba(0,0,0,0.14);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; color: #196887; font-size: 12px; font-weight: 600; font-family: 'Montserrat', Verdana, sans-serif;">
+        <span>Progress</span>
+        <span>@GetAnsweredQuestionCount() / @GetTotalQuestionCount()</span>
+    </div>
+    <div style="height: 8px; background-color: #8bb4c6; border-radius: 999px; overflow: hidden;">
+        <div style="height: 100%; background-color: #196887; width: @(GetProgressPercentage())%; transition: width 0.3s ease-in-out;"></div>
+    </div>
+</div>
+
 <div style="text-align: center; padding: 1rem 0 0.75rem; border-bottom: 2px solid var(--fw-primary-light); margin-bottom: 1.5rem;">
     <h2 style="margin: 0; font-family: 'Montserrat', Verdana, sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--fw-primary); letter-spacing: 0.01em;">
         @(GetSelectedCommunityKey() == 0 ? "N/A" : (AuthStateService.SelectedFacility?.Facility ?? "N/A"))
@@ -75,13 +86,13 @@ else
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div style="padding: 10px; margin: 10px 0; background-color: #fffaec; color: #5f6062; border-radius: 4px;">
+        <div style="padding: 10px; margin: 10px 0; background-color: #fffaec; color: #ff8c00; border-radius: 4px;">
             @errorMessage
         </div>
     }
 
-    <button @onclick="OpenSubmitAndLockDialog" disabled="@(communityLocked || submitted)"
-            style="padding: 12px 40px; background-color: @((communityLocked || submitted) ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @((communityLocked || submitted) ? "not-allowed" : "pointer"); margin: 20px 0; font-weight: 500;">
+    <button @onclick="OpenSubmitAndLockDialog" disabled="@(communityLocked || submitted || HasUnansweredQuestions())"
+            style="padding: 12px 40px; background-color: @((communityLocked || submitted || HasUnansweredQuestions()) ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @((communityLocked || submitted || HasUnansweredQuestions()) ? "not-allowed" : "pointer"); margin: 20px 0; font-weight: 500;">
         Submit and Lock
     </button>
 
@@ -259,6 +270,10 @@ else
     {
         var marginLeft = level * 20;
         var isExpanded = expandedSectionIds.Contains(sec.Id);
+        var sectionQuestions = GetSectionQuestions(sec).ToList();
+        var sectionTotalCount = sectionQuestions.Count;
+        var sectionAnsweredCount = sectionQuestions.Count(q => responses.ContainsKey(q.Id) && !string.IsNullOrWhiteSpace(responses[q.Id]));
+        var sectionProgressPercent = sectionTotalCount == 0 ? 0 : (sectionAnsweredCount * 100.0) / sectionTotalCount;
 
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", "fw-accordion-panel");
@@ -275,41 +290,58 @@ else
         builder.CloseElement();
         builder.AddContent(11, sec.Name);
         builder.CloseElement();
+
+        builder.OpenElement(12, "div");
+        builder.AddAttribute(13, "style", "display: flex; align-items: center; gap: 8px; min-width: 180px;");
+
+        builder.OpenElement(14, "span");
+        builder.AddAttribute(15, "style", "font-size: 12px; font-weight: 600; color: #196887; white-space: nowrap;");
+        builder.AddContent(16, $"{sectionAnsweredCount} / {sectionTotalCount}");
+        builder.CloseElement();
+
+        builder.OpenElement(17, "div");
+        builder.AddAttribute(18, "style", "flex: 1; min-width: 90px; height: 7px; background-color: #8bb4c6; border-radius: 999px; overflow: hidden;");
+        builder.OpenElement(19, "div");
+        builder.AddAttribute(20, "style", $"height: 100%; background-color: #196887; width: {sectionProgressPercent:F1}%; transition: width 0.3s ease-in-out;");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        builder.CloseElement();
         builder.CloseElement();
 
         if (isExpanded && sec.Questions.Any())
         {
-            builder.OpenElement(12, "table");
-            builder.AddAttribute(13, "style", "width: 100%; border-collapse: collapse; background-color: white;");
+            builder.OpenElement(21, "table");
+            builder.AddAttribute(22, "style", "width: 100%; border-collapse: collapse; background-color: white;");
 
-            builder.OpenElement(14, "thead");
-            builder.OpenElement(15, "tr");
-            builder.AddAttribute(16, "style", "background-color: #196887; color: white;");
-
-            builder.OpenElement(17, "th");
-            builder.AddAttribute(18, "style", "padding: 12px; text-align: left; border: 1px solid #d1d3d5; width: 50%;");
-            builder.AddContent(19, "Question");
-            builder.CloseElement();
-
-            builder.OpenElement(20, "th");
-            builder.AddAttribute(21, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
-            builder.AddContent(22, "Fully Implemented");
-            builder.CloseElement();
-
-            builder.OpenElement(23, "th");
-            builder.AddAttribute(24, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
-            builder.AddContent(25, "Partially Implemented");
-            builder.CloseElement();
+            builder.OpenElement(23, "thead");
+            builder.OpenElement(24, "tr");
+            builder.AddAttribute(25, "style", "background-color: #196887; color: white;");
 
             builder.OpenElement(26, "th");
-            builder.AddAttribute(27, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
-            builder.AddContent(28, "Not a Current Practice");
+            builder.AddAttribute(27, "style", "padding: 12px; text-align: left; border: 1px solid #d1d3d5; width: 50%;");
+            builder.AddContent(28, "Question");
+            builder.CloseElement();
+
+            builder.OpenElement(29, "th");
+            builder.AddAttribute(30, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
+            builder.AddContent(31, "Fully Implemented");
+            builder.CloseElement();
+
+            builder.OpenElement(32, "th");
+            builder.AddAttribute(33, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
+            builder.AddContent(34, "Partially Implemented");
+            builder.CloseElement();
+
+            builder.OpenElement(35, "th");
+            builder.AddAttribute(36, "style", "padding: 12px; text-align: center; border: 1px solid #d1d3d5; width: 16.66%;");
+            builder.AddContent(37, "Not a Current Practice");
             builder.CloseElement();
 
             builder.CloseElement();
             builder.CloseElement();
 
-            builder.OpenElement(29, "tbody");
+            builder.OpenElement(38, "tbody");
 
             foreach (var question in sec.Questions)
             {
@@ -555,9 +587,69 @@ else
         return questions;
     }
 
+    private static IEnumerable<Question> GetSectionQuestions(Section section)
+    {
+        foreach (var question in section.Questions)
+        {
+            yield return question;
+        }
+
+        foreach (var subsection in section.Subsections)
+        {
+            foreach (var question in GetSectionQuestions(subsection))
+            {
+                yield return question;
+            }
+        }
+    }
+
     private void ResetSurvey()
     {
         // Resetting is not allowed per requirements once submitted. We can change this if needed in the future.
+    }
+
+    private bool HasUnansweredQuestions()
+    {
+        if (sections == null || !sections.Any())
+        {
+            return false;
+        }
+
+        var allQuestions = GetAllQuestions(sections);
+        return allQuestions.Any(q => !responses.ContainsKey(q.Id) || string.IsNullOrWhiteSpace(responses[q.Id]));
+    }
+
+    private int GetTotalQuestionCount()
+    {
+        if (sections == null || !sections.Any())
+        {
+            return 0;
+        }
+
+        return GetAllQuestions(sections).Count;
+    }
+
+    private int GetAnsweredQuestionCount()
+    {
+        if (sections == null || !sections.Any())
+        {
+            return 0;
+        }
+
+        var allQuestions = GetAllQuestions(sections);
+        return allQuestions.Count(q => responses.ContainsKey(q.Id) && !string.IsNullOrWhiteSpace(responses[q.Id]));
+    }
+
+    private double GetProgressPercentage()
+    {
+        var totalCount = GetTotalQuestionCount();
+        if (totalCount == 0)
+        {
+            return 0;
+        }
+
+        var answeredCount = GetAnsweredQuestionCount();
+        return (answeredCount * 100.0) / totalCount;
     }
 
     private int? GetSelectedCommunityKey()
