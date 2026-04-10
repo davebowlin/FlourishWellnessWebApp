@@ -293,6 +293,21 @@ namespace FlourishWellness.Services
             return status?.IsCompleted ?? false;
         }
 
+        public async Task<DateTime?> GetSurveyCompletedAtAsync(int userId, int? communityKey)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var activeYear = await GetOrCreateActiveSurveyYearAsync(context);
+            var status = await context.UserSurveyStatuses
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.SurveyYearId == activeYear.Year && s.CommunityKey == communityKey);
+
+            if (status?.IsCompleted != true)
+            {
+                return null;
+            }
+
+            return status.UpdatedAt;
+        }
+
         public async Task<bool> IsCommunitySurveyLockedAsync(int? communityKey)
         {
             using var context = await _factory.CreateDbContextAsync();
