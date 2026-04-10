@@ -15,7 +15,7 @@
 <PageTitle>FlourishWellness Survey</PageTitle>
 
 <!-- Floating Progress Bar -->
-<div style="position: fixed; top: 14px; right: 16px; width: 220px; padding: 8px 10px; background-color: #f6f9f7; border: 1px solid #d1d3d5; border-radius: 8px; z-index: 1001; box-shadow: 0 2px 8px rgba(0,0,0,0.14);">
+<div class="survey-progress-floating">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; color: #196887; font-size: 12px; font-weight: 600; font-family: 'Montserrat', Verdana, sans-serif;">
         <span>Progress</span>
         <span>@GetAnsweredQuestionCount() / @GetTotalQuestionCount()</span>
@@ -91,10 +91,20 @@ else
         </div>
     }
 
-    <button @onclick="OpenSubmitAndLockDialog" disabled="@(communityLocked || submitted || HasUnansweredQuestions())"
-            style="padding: 12px 40px; background-color: @((communityLocked || submitted || HasUnansweredQuestions()) ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @((communityLocked || submitted || HasUnansweredQuestions()) ? "not-allowed" : "pointer"); margin: 20px 0; font-weight: 500;">
-        Submit and Lock
-    </button>
+    <div style="display: flex; align-items: center; gap: 12px; margin: 20px 0; flex-wrap: wrap;">
+        <button @onclick="OpenSubmitAndLockDialog" disabled="@(communityLocked || submitted || HasUnansweredQuestions())"
+                style="padding: 12px 40px; background-color: @((communityLocked || submitted || HasUnansweredQuestions()) ? "#b0b0b0" : "#196887"); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: @((communityLocked || submitted || HasUnansweredQuestions()) ? "not-allowed" : "pointer"); font-weight: 500;">
+            Submit and Lock
+        </button>
+
+        @if (hasSubmittedAndLockedSurvey)
+        {
+            <a href="/action-plans"
+               style="display: inline-block; padding: 12px 28px; background-color: #387c2b; color: white; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: 500;">
+                Action Plans
+            </a>
+        }
+    </div>
 
     @if (showSubmitAndLockDialog)
     {
@@ -154,6 +164,7 @@ else
     private bool hasUnsavedChanges = false;
     private bool showLeaveDialog = false;
     private bool showSubmitAndLockDialog = false;
+    private bool hasSubmittedAndLockedSurvey = false;
     private string pendingNavigationUrl = string.Empty;
     private HashSet<int> expandedSectionIds = new();
     private IDisposable? _locationChangingReg;
@@ -184,7 +195,8 @@ else
             {
                 surveyYear = await SurveyService.GetActiveSurveyYearAsync();
                 communityLocked = await SurveyService.IsCommunitySurveyLockedAsync(GetSelectedCommunityKey());
-                submitted = communityLocked || await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
+                hasSubmittedAndLockedSurvey = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, GetSelectedCommunityKey());
+                submitted = communityLocked || hasSubmittedAndLockedSurvey;
                 await LogService.LogAsync("Started/Resumed survey", AuthStateService.CurrentUser.Email);
                 await LoadSurvey();
             }
@@ -550,6 +562,7 @@ else
         }
 
         submitted = true;
+        hasSubmittedAndLockedSurvey = true;
         await LogService.LogAsync("Submitted survey", AuthStateService.CurrentUser.Email);
     }
 

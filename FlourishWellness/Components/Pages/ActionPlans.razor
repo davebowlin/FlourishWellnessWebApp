@@ -1,0 +1,615 @@
+@page "/action-plans"
+@using FlourishWellness.Models
+@using FlourishWellness.Services
+@using Microsoft.AspNetCore.Components.Routing
+@inject AuthStateService AuthStateService
+@inject SurveyService SurveyService
+@inject NavigationManager NavigationManager
+@inject LogService LogService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Action Plans - FlourishWellness</PageTitle>
+
+<div class="ap-page">
+    <div class="ap-header">
+        <h2>Action Plans</h2>
+        <p>Testing mode: Save stores data in page memory only and does not write to the database.</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <p><em>Loading action plan data...</em></p>
+    }
+    else if (!string.IsNullOrWhiteSpace(accessMessage))
+    {
+        <div class="ap-warning">
+            <h4>Action Plans Unavailable</h4>
+            <p>@accessMessage</p>
+            <a class="ap-link-button" href="/">Return Home</a>
+        </div>
+    }
+    else
+    {
+        <section class="ap-card">
+            <h3>Plan Details</h3>
+            <div class="ap-grid">
+                <div class="ap-field">
+                    <label>Community Name</label>
+                    <input value="@CommunityName" readonly />
+                </div>
+                <div class="ap-field">
+                    <label>Executive Director / Administrator</label>
+                    <input value="@plan.ExecutiveDirector" @onchange="OnExecutiveDirectorChanged" placeholder="Enter name" />
+                </div>
+                <div class="ap-field">
+                    <label>RDO</label>
+                    <input value="Not Yet Implemented" readonly />
+                </div>
+                <div class="ap-field">
+                    <label>Date Audit Completed</label>
+                    <input value="@DateAuditCompletedText" readonly />
+                </div>
+                <div class="ap-field">
+                    <label>Date of Audit Review Call</label>
+                    <input type="date" value="@ToDateInputValue(plan.DateAuditReviewCall)" @onchange="OnDateAuditReviewCallChanged" />
+                </div>
+                <div class="ap-field">
+                    <label>Date of Action Plan Approval by RDO</label>
+                    <input type="date" value="@ToDateInputValue(plan.DateOfApprovalByRdo)" @onchange="OnDateApprovalByRdoChanged" />
+                </div>
+            </div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            <div class="ap-status">@statusMessage</div>
+        }
+
+        @foreach (var growthArea in growthAreas)
+        {
+            <section class="ap-card" @key="growthArea.Id">
+                <div class="ap-growth-title">
+                    <h3>Growth Area</h3>
+                    @if (growthArea.IsSaved)
+                    {
+                        <span class="ap-badge">Saved (In Memory)</span>
+                    }
+                </div>
+
+                <div class="ap-grid">
+                    <div class="ap-field">
+                        <label>Section (Focus)</label>
+                        <select value="@GetNullableIntValue(growthArea.SectionId)" @onchange="(e => OnSectionChanged(growthArea, e.Value?.ToString()))">
+                            <option value="">-- Select section --</option>
+                            @foreach (var sectionOption in sectionOptions)
+                            {
+                                <option value="@sectionOption.Id">@sectionOption.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="ap-field">
+                        <label>Question</label>
+                        <select value="@GetNullableIntValue(growthArea.QuestionId)" @onchange="(e => OnQuestionChanged(growthArea, e.Value?.ToString()))" disabled="@(growthArea.SectionId == null)">
+                            <option value="">-- Select question --</option>
+                            @foreach (var question in GetQuestionOptionsForSection(growthArea.SectionId))
+                            {
+                                <option value="@question.QuestionId">@question.QuestionText</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="ap-field">
+                        <label>Status</label>
+                        <select value="@growthArea.Status" @onchange="(e => OnGrowthStatusChanged(growthArea, e.Value?.ToString()))">
+                            @foreach (var status in GrowthStatuses)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="ap-field ap-wide">
+                        <label>Focus</label>
+                        <input value="@GetSectionNameForGrowthArea(growthArea)" readonly />
+                    </div>
+
+                    <div class="ap-field ap-wide">
+                        <label>SMART Goal</label>
+                        <textarea rows="3" @onchange="(e => OnSmartGoalChanged(growthArea, e.Value?.ToString()))">@growthArea.SmartGoal</textarea>
+                    </div>
+                </div>
+
+                <p class="ap-steps-label">Action Steps (include action, responsible party, and target date)</p>
+
+                @foreach (var step in growthArea.ActionSteps)
+                {
+                    <div class="ap-step-row" @key="step.Id">
+                        <input value="@step.Action" @onchange="(e => OnStepActionChanged(growthArea, step, e.Value?.ToString()))" placeholder="Action" />
+                        <input value="@step.ResponsibleParty" @onchange="(e => OnStepResponsiblePartyChanged(growthArea, step, e.Value?.ToString()))" placeholder="Responsible party" />
+                        <input type="date" value="@ToDateInputValue(step.TargetDate)" @onchange="(e => OnStepTargetDateChanged(growthArea, step, e.Value?.ToString()))" />
+                        <select value="@step.Status" @onchange="(e => OnStepStatusChanged(growthArea, step, e.Value?.ToString()))">
+                            @foreach (var status in GrowthStatuses)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                <div class="ap-actions">
+                    <button class="ap-btn ap-btn-secondary" @onclick="(() => AddActionStep(growthArea))">+ Add Action Step</button>
+                    <button class="ap-btn ap-btn-primary" @onclick="(() => SaveGrowthArea(growthArea))">Save</button>
+                    <button class="ap-btn ap-btn-neutral" @onclick="(() => RequestCancelGrowthArea(growthArea.Id))">Cancel</button>
+                </div>
+            </section>
+        }
+
+        <div class="ap-add-row">
+            <button class="ap-btn ap-btn-primary" @onclick="(() => AddGrowthArea(true))">+ Add Another Growth Area</button>
+        </div>
+    }
+</div>
+
+@if (showCancelConfirm)
+{
+    <div class="ap-modal-overlay">
+        <div class="ap-modal">
+            <h4>Discard Growth Area?</h4>
+            <p>Cancelling will remove this growth area and all related action steps from the current page session.</p>
+            <div class="ap-modal-actions">
+                <button class="ap-btn ap-btn-primary" @onclick="ConfirmCancelGrowthArea">Discard</button>
+                <button class="ap-btn ap-btn-neutral" @onclick="CloseCancelDialog">Keep Editing</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showLeaveDialog)
+{
+    <div class="ap-modal-overlay">
+        <div class="ap-modal">
+            <h4>Unsaved Changes</h4>
+            <p>You have unsaved Action Plans changes. Do you want to save in memory before leaving this page?</p>
+            <div class="ap-modal-actions">
+                <button class="ap-btn ap-btn-primary" @onclick="LeaveDialogSaveAndLeave">Save and Leave</button>
+                <button class="ap-btn ap-btn-secondary" @onclick="LeaveDialogLeaveWithoutSaving">Leave Without Saving</button>
+                <button class="ap-btn ap-btn-neutral" @onclick="LeaveDialogCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly ActionPlanPageModel plan = new();
+    private readonly List<GrowthAreaModel> growthAreas = new();
+    private readonly List<SectionOption> sectionOptions = new();
+    private readonly List<QuestionOption> questionOptions = new();
+    private readonly string[] GrowthStatuses = ["Open", "Complete", "Deferred"];
+
+    private bool isLoading = true;
+    private string accessMessage = string.Empty;
+    private string statusMessage = string.Empty;
+    private DateTime? auditCompletedDate;
+    private bool showCancelConfirm;
+    private bool showLeaveDialog;
+    private bool hasUnsavedChanges;
+    private bool _allowNavigationWithoutPrompt;
+    private Guid pendingCancelId;
+    private string pendingNavigationUrl = string.Empty;
+    private IDisposable? _locationChangingReg;
+
+    private string CommunityName => AuthStateService.SelectedFacility?.Facility ?? "N/A";
+
+    private string DateAuditCompletedText => auditCompletedDate.HasValue
+        ? auditCompletedDate.Value.ToString("yyyy-MM-dd")
+        : "Not available";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await AuthStateService.InitializeAsync();
+            await AuthStateService.RefreshCurrentUserAsync();
+
+            if (AuthStateService.CurrentUser == null)
+            {
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            if (AuthStateService.RequiresFacilitySelection)
+            {
+                accessMessage = "Select a facility on the home page before using Action Plans.";
+                return;
+            }
+
+            var communityKey = GetSelectedCommunityKey();
+            if (communityKey <= 0)
+            {
+                accessMessage = "A valid facility/community selection is required.";
+                return;
+            }
+
+            var isCompleted = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, communityKey);
+            if (!isCompleted)
+            {
+                accessMessage = "Action Plans become available after a survey is submitted and locked for this facility.";
+                return;
+            }
+
+            auditCompletedDate = await SurveyService.GetSurveyCompletedAtAsync(AuthStateService.CurrentUser.Id, communityKey);
+            await LoadSectionAndQuestionOptionsAsync();
+            AddGrowthArea(false);
+            await LogService.LogAsync("Opened action plans page", AuthStateService.CurrentUser.Email);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _locationChangingReg = NavigationManager.RegisterLocationChangingHandler(OnLocationChanging);
+        }
+    }
+
+    private async Task LoadSectionAndQuestionOptionsAsync()
+    {
+        var sections = await SurveyService.GetSectionsAsync();
+        sectionOptions.Clear();
+        questionOptions.Clear();
+
+        foreach (var section in sections)
+        {
+            BuildSectionAndQuestionOptions(section);
+        }
+    }
+
+    private void BuildSectionAndQuestionOptions(Section section)
+    {
+        if (section.Questions.Any())
+        {
+            sectionOptions.Add(new SectionOption(section.Id, section.Name));
+
+            foreach (var question in section.Questions)
+            {
+                questionOptions.Add(new QuestionOption(section.Id, section.Name, question.Id, question.Text));
+            }
+        }
+
+        foreach (var subsection in section.Subsections)
+        {
+            BuildSectionAndQuestionOptions(subsection);
+        }
+    }
+
+    private IEnumerable<QuestionOption> GetQuestionOptionsForSection(int? sectionId)
+    {
+        if (sectionId == null)
+        {
+            return Enumerable.Empty<QuestionOption>();
+        }
+
+        return questionOptions.Where(q => q.SectionId == sectionId.Value);
+    }
+
+    private void OnExecutiveDirectorChanged(ChangeEventArgs e)
+    {
+        plan.ExecutiveDirector = e.Value?.ToString() ?? string.Empty;
+        MarkDirty();
+    }
+
+    private void OnDateAuditReviewCallChanged(ChangeEventArgs e)
+    {
+        plan.DateAuditReviewCall = ParseNullableDate(e.Value?.ToString());
+        MarkDirty();
+    }
+
+    private void OnDateApprovalByRdoChanged(ChangeEventArgs e)
+    {
+        plan.DateOfApprovalByRdo = ParseNullableDate(e.Value?.ToString());
+        MarkDirty();
+    }
+
+    private void OnSectionChanged(GrowthAreaModel area, string? selectedValue)
+    {
+        area.SectionId = ParseNullableInt(selectedValue);
+        area.QuestionId = null;
+        area.IsSaved = false;
+        statusMessage = string.Empty;
+        MarkDirty();
+    }
+
+    private void OnQuestionChanged(GrowthAreaModel area, string? selectedValue)
+    {
+        area.QuestionId = ParseNullableInt(selectedValue);
+        area.IsSaved = false;
+        statusMessage = string.Empty;
+        MarkDirty();
+    }
+
+    private void OnGrowthStatusChanged(GrowthAreaModel area, string? value)
+    {
+        area.Status = string.IsNullOrWhiteSpace(value) ? "Open" : value;
+        area.IsSaved = false;
+        MarkDirty();
+    }
+
+    private void OnSmartGoalChanged(GrowthAreaModel area, string? value)
+    {
+        area.SmartGoal = value ?? string.Empty;
+        area.IsSaved = false;
+        MarkDirty();
+    }
+
+    private void OnStepActionChanged(GrowthAreaModel area, ActionStepModel step, string? value)
+    {
+        step.Action = value ?? string.Empty;
+        area.IsSaved = false;
+        MarkDirty();
+    }
+
+    private void OnStepResponsiblePartyChanged(GrowthAreaModel area, ActionStepModel step, string? value)
+    {
+        step.ResponsibleParty = value ?? string.Empty;
+        area.IsSaved = false;
+        MarkDirty();
+    }
+
+    private void OnStepTargetDateChanged(GrowthAreaModel area, ActionStepModel step, string? value)
+    {
+        step.TargetDate = ParseNullableDate(value);
+        area.IsSaved = false;
+        MarkDirty();
+    }
+
+    private void OnStepStatusChanged(GrowthAreaModel area, ActionStepModel step, string? value)
+    {
+        step.Status = string.IsNullOrWhiteSpace(value) ? "Open" : value;
+        area.IsSaved = false;
+        MarkDirty();
+    }
+
+    private void AddGrowthArea(bool markDirty)
+    {
+        growthAreas.Add(new GrowthAreaModel
+        {
+            ActionSteps =
+            {
+                new ActionStepModel()
+            }
+        });
+
+        statusMessage = string.Empty;
+        if (markDirty)
+        {
+            MarkDirty();
+        }
+    }
+
+    private void AddActionStep(GrowthAreaModel area)
+    {
+        area.ActionSteps.Add(new ActionStepModel());
+        area.IsSaved = false;
+        statusMessage = string.Empty;
+        MarkDirty();
+    }
+
+    private void SaveGrowthArea(GrowthAreaModel area)
+    {
+        if (area.SectionId == null || area.QuestionId == null)
+        {
+            statusMessage = "Select both a section and a question before saving this growth area.";
+            return;
+        }
+
+        area.IsSaved = true;
+        hasUnsavedChanges = growthAreas.Any(g => !g.IsSaved);
+        _ = UpdateBeforeUnloadAsync(hasUnsavedChanges);
+        statusMessage = "Growth area saved in page memory (testing mode).";
+    }
+
+    private void RequestCancelGrowthArea(Guid growthAreaId)
+    {
+        pendingCancelId = growthAreaId;
+        showCancelConfirm = true;
+    }
+
+    private void CloseCancelDialog()
+    {
+        pendingCancelId = Guid.Empty;
+        showCancelConfirm = false;
+    }
+
+    private void ConfirmCancelGrowthArea()
+    {
+        if (pendingCancelId == Guid.Empty)
+        {
+            showCancelConfirm = false;
+            return;
+        }
+
+        var index = growthAreas.FindIndex(g => g.Id == pendingCancelId);
+        if (index >= 0)
+        {
+            growthAreas.RemoveAt(index);
+            statusMessage = "Growth area discarded.";
+            MarkDirty();
+        }
+
+        pendingCancelId = Guid.Empty;
+        showCancelConfirm = false;
+    }
+
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        if (_allowNavigationWithoutPrompt || !hasUnsavedChanges)
+        {
+            return;
+        }
+
+        context.PreventNavigation();
+        pendingNavigationUrl = context.TargetLocation;
+        showLeaveDialog = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void MarkDirty()
+    {
+        if (!hasUnsavedChanges)
+        {
+            hasUnsavedChanges = true;
+            _ = UpdateBeforeUnloadAsync(true);
+        }
+    }
+
+    private void SaveAllInMemoryChanges()
+    {
+        foreach (var area in growthAreas)
+        {
+            if (area.SectionId != null && area.QuestionId != null)
+            {
+                area.IsSaved = true;
+            }
+        }
+
+        hasUnsavedChanges = growthAreas.Any(g => !g.IsSaved);
+        _ = UpdateBeforeUnloadAsync(hasUnsavedChanges);
+    }
+
+    private async Task LeaveDialogSaveAndLeave()
+    {
+        showLeaveDialog = false;
+        SaveAllInMemoryChanges();
+        await NavigateAfterLeaveDecisionAsync();
+    }
+
+    private async Task LeaveDialogLeaveWithoutSaving()
+    {
+        showLeaveDialog = false;
+        hasUnsavedChanges = false;
+        await UpdateBeforeUnloadAsync(false);
+        await NavigateAfterLeaveDecisionAsync();
+    }
+
+    private void LeaveDialogCancel()
+    {
+        showLeaveDialog = false;
+        pendingNavigationUrl = string.Empty;
+    }
+
+    private async Task NavigateAfterLeaveDecisionAsync()
+    {
+        var destination = pendingNavigationUrl;
+        pendingNavigationUrl = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(destination))
+        {
+            return;
+        }
+
+        _allowNavigationWithoutPrompt = true;
+        try
+        {
+            NavigationManager.NavigateTo(destination);
+        }
+        finally
+        {
+            _allowNavigationWithoutPrompt = false;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task UpdateBeforeUnloadAsync(bool enable)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync(enable ? "flourish.enableLeaveWarning" : "flourish.disableLeaveWarning");
+        }
+        catch
+        {
+            // Ignore JS interop issues during prerender/disposal boundaries.
+        }
+    }
+
+    private static int? ParseNullableInt(string? value)
+    {
+        return int.TryParse(value, out var parsed) ? parsed : null;
+    }
+
+    private static DateTime? ParseNullableDate(string? value)
+    {
+        return DateTime.TryParse(value, out var parsed) ? parsed : null;
+    }
+
+    private static string GetNullableIntValue(int? value)
+    {
+        return value?.ToString() ?? string.Empty;
+    }
+
+    private static string ToDateInputValue(DateTime? date)
+    {
+        return date?.ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private string GetSectionNameForGrowthArea(GrowthAreaModel area)
+    {
+        if (area.QuestionId == null)
+        {
+            return area.SectionId == null
+                ? "Section will populate after selection."
+                : sectionOptions.FirstOrDefault(s => s.Id == area.SectionId.Value)?.Name ?? "Section not found.";
+        }
+
+        return questionOptions.FirstOrDefault(q => q.QuestionId == area.QuestionId.Value)?.SectionName ?? "Section not found.";
+    }
+
+    private int? GetSelectedCommunityKey()
+    {
+        var ck = AuthStateService.SelectedFacility?.CommunityKey;
+        return int.TryParse(ck, out var val) ? val : 0;
+    }
+
+    public void Dispose()
+    {
+        _locationChangingReg?.Dispose();
+        _ = UpdateBeforeUnloadAsync(false);
+    }
+
+    private sealed class ActionPlanPageModel
+    {
+        public string ExecutiveDirector { get; set; } = string.Empty;
+        public DateTime? DateAuditReviewCall { get; set; }
+        public DateTime? DateOfApprovalByRdo { get; set; }
+    }
+
+    private sealed class GrowthAreaModel
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+        public int? SectionId { get; set; }
+        public int? QuestionId { get; set; }
+        public string Status { get; set; } = "Open";
+        public string SmartGoal { get; set; } = string.Empty;
+        public List<ActionStepModel> ActionSteps { get; set; } = new();
+        public bool IsSaved { get; set; }
+    }
+
+    private sealed class ActionStepModel
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+        public string Action { get; set; } = string.Empty;
+        public string ResponsibleParty { get; set; } = string.Empty;
+        public DateTime? TargetDate { get; set; }
+        public string Status { get; set; } = "Open";
+    }
+
+    private sealed record SectionOption(int Id, string Name);
+    private sealed record QuestionOption(int SectionId, string SectionName, int QuestionId, string QuestionText);
+}

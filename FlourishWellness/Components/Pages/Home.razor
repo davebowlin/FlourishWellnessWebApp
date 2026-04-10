@@ -2,6 +2,7 @@
 @using FlourishWellness.Services
 @inject NavigationManager NavigationManager
 @inject AuthStateService AuthStateService
+@inject SurveyService SurveyService
 
 <PageTitle>Home - FlourishWellness</PageTitle>
 
@@ -61,6 +62,19 @@
             </div>
         }
 
+        @if (!AuthStateService.RequiresFacilitySelection && hasSubmittedAndLockedSurvey)
+        {
+            <div style="padding: 30px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
+                <h3 style="color: #387c2b; margin-top: 0;">🧭 Action Plans</h3>
+                <p style="color: #5f6062; margin-bottom: 20px;">
+                    Build and track growth areas from your submitted and locked survey.
+                </p>
+                <a href="/action-plans" style="display: inline-block; padding: 10px 30px; background-color: #387c2b; color: white; text-decoration: none; border-radius: 5px; font-weight: 500;">
+                    Open Action Plans
+                </a>
+            </div>
+        }
+
         @if (AuthStateService.IsManager || AuthStateService.IsAdmin)
         {
             <div style="padding: 30px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
@@ -91,6 +105,7 @@
 
 @code {
     private string selectedFacilityValue = string.Empty;
+    private bool hasSubmittedAndLockedSurvey = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,6 +115,8 @@
         {
             selectedFacilityValue = BuildSelectionValue(AuthStateService.SelectedFacility);
         }
+
+        await LoadActionPlansAvailabilityAsync();
     }
 
     private static string BuildSelectionValue(FlourishWellness.Models.ADFacilityUser facility)
@@ -118,5 +135,30 @@
         var facility = split[0];
         var communityKey = split.Length > 1 ? split[1] : null;
         await AuthStateService.SetSelectedFacilityAsync(facility, communityKey);
+        await LoadActionPlansAvailabilityAsync();
+    }
+
+    private async Task LoadActionPlansAvailabilityAsync()
+    {
+        hasSubmittedAndLockedSurvey = false;
+
+        if (AuthStateService.CurrentUser == null || AuthStateService.RequiresFacilitySelection)
+        {
+            return;
+        }
+
+        var communityKey = GetSelectedCommunityKey();
+        if (communityKey <= 0)
+        {
+            return;
+        }
+
+        hasSubmittedAndLockedSurvey = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, communityKey);
+    }
+
+    private int? GetSelectedCommunityKey()
+    {
+        var ck = AuthStateService.SelectedFacility?.CommunityKey;
+        return int.TryParse(ck, out var val) ? val : 0;
     }
 }
