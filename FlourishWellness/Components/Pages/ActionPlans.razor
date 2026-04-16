@@ -83,7 +83,7 @@
                         <label>Section (Focus)</label>
                         <select value="@GetNullableIntValue(growthArea.SectionId)" @onchange="(e => OnSectionChanged(growthArea, e.Value?.ToString()))">
                             <option value="">-- Select section --</option>
-                            @foreach (var sectionOption in sectionOptions)
+                            @foreach (var sectionOption in GetSectionOptionsForArea(growthArea))
                             {
                                 <option value="@sectionOption.Id">@sectionOption.Name</option>
                             }
@@ -94,7 +94,7 @@
                         <label>Question</label>
                         <select value="@GetNullableIntValue(growthArea.QuestionId)" @onchange="(e => OnQuestionChanged(growthArea, e.Value?.ToString()))" disabled="@(growthArea.SectionId == null)">
                             <option value="">-- Select question --</option>
-                            @foreach (var question in GetQuestionOptionsForSection(growthArea.SectionId))
+                            @foreach (var question in GetQuestionOptionsForArea(growthArea))
                             {
                                 <option value="@question.QuestionId">@question.QuestionText</option>
                             }
@@ -188,6 +188,7 @@
     private readonly List<SectionOption> sectionOptions = new();
     private readonly List<QuestionOption> questionOptions = new();
     private readonly string[] GrowthStatuses = ["Open", "Complete", "Deferred"];
+    private readonly HashSet<int> fullyImplementedQuestionIds = new();
 
     private bool isLoading = true;
     private string accessMessage = string.Empty;
@@ -240,6 +241,7 @@
                 return;
             }
 
+            await LoadFullyImplementedQuestionIdsAsync(AuthStateService.CurrentUser.Id, communityKey);
             auditCompletedDate = await SurveyService.GetSurveyCompletedAtAsync(AuthStateService.CurrentUser.Id, communityKey);
             await LoadSectionAndQuestionOptionsAsync();
             AddGrowthArea(false);
@@ -271,13 +273,31 @@
         }
     }
 
+    private async Task LoadFullyImplementedQuestionIdsAsync(int userId, int? communityKey)
+    {
+        fullyImplementedQuestionIds.Clear();
+
+        var userResponses = await SurveyService.GetUserResponsesAsync(userId, communityKey);
+        foreach (var response in userResponses)
+        {
+            if (string.Equals(response.Value, "Fully Implemented", StringComparison.OrdinalIgnoreCase))
+            {
+                fullyImplementedQuestionIds.Add(response.Key);
+            }
+        }
+    }
+
     private void BuildSectionAndQuestionOptions(Section section)
     {
-        if (section.Questions.Any())
+        var allowedQuestions = section.Questions
+            .Where(q => !fullyImplementedQuestionIds.Contains(q.Id))
+            .ToList();
+
+        if (allowedQuestions.Any())
         {
             sectionOptions.Add(new SectionOption(section.Id, section.Name));
 
-            foreach (var question in section.Questions)
+            foreach (var question in allowedQuestions)
             {
                 questionOptions.Add(new QuestionOption(section.Id, section.Name, question.Id, question.Text));
             }
@@ -289,14 +309,36 @@
         }
     }
 
-    private IEnumerable<QuestionOption> GetQuestionOptionsForSection(int? sectionId)
+    private IEnumerable<SectionOption> GetSectionOptionsForArea(GrowthAreaModel area)
     {
-        if (sectionId == null)
+        var selectedElsewhere = GetSelectedQuestionIdsExcluding(area.Id);
+
+        return sectionOptions
+            .Where(section =>
+                section.Id == area.SectionId
+                || questionOptions.Any(q => q.SectionId == section.Id && (q.QuestionId == area.QuestionId || !selectedElsewhere.Contains(q.QuestionId))));
+    }
+
+    private IEnumerable<QuestionOption> GetQuestionOptionsForArea(GrowthAreaModel area)
+    {
+        if (area.SectionId == null)
         {
             return Enumerable.Empty<QuestionOption>();
         }
 
-        return questionOptions.Where(q => q.SectionId == sectionId.Value);
+        var selectedElsewhere = GetSelectedQuestionIdsExcluding(area.Id);
+
+        return questionOptions.Where(q =>
+            q.SectionId == area.SectionId.Value
+            && (q.QuestionId == area.QuestionId || !selectedElsewhere.Contains(q.QuestionId)));
+    }
+
+    private HashSet<int> GetSelectedQuestionIdsExcluding(Guid growthAreaId)
+    {
+        return growthAreas
+            .Where(g => g.Id != growthAreaId && g.QuestionId.HasValue)
+            .Select(g => g.QuestionId!.Value)
+            .ToHashSet();
     }
 
     private void OnExecutiveDirectorChanged(ChangeEventArgs e)
@@ -328,7 +370,14 @@
 
     private void OnQuestionChanged(GrowthAreaModel area, string? selectedValue)
     {
-        area.QuestionId = ParseNullableInt(selectedValue);
+        var parsedQuestionId = ParseNullableInt(selectedValue);
+        if (parsedQuestionId.HasValue && GetSelectedQuestionIdsExcluding(area.Id).Contains(parsedQuestionId.Value))
+        {
+            statusMessage = "That question is already selected in another Growth Area for this facility.";
+            return;
+        }
+
+        area.QuestionId = parsedQuestionId;
         area.IsSaved = false;
         statusMessage = string.Empty;
         MarkDirty();
@@ -406,6 +455,12 @@
         if (area.SectionId == null || area.QuestionId == null)
         {
             statusMessage = "Select both a section and a question before saving this growth area.";
+            return;
+        }
+
+        if (GetSelectedQuestionIdsExcluding(area.Id).Contains(area.QuestionId.Value))
+        {
+            statusMessage = "Each question can only be used once per facility Action Plan.";
             return;
         }
 
