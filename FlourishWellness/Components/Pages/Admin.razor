@@ -20,7 +20,7 @@
     {
         <button @onclick="@(() => activeTab = "survey")"
                 style="@(activeTab == "survey" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-radius: 4px 0 0 4px; cursor: pointer;">
-            Manage Survey
+            Manage Audit
         </button>
         <button @onclick="@(() => activeTab = "users")"
                 style="@(activeTab == "users" ? "background-color: #196887; color: white;" : "background-color: #f6f9f7; color: #5f6062;") padding: 10px 20px; border: 1px solid #d1d3d5; border-left: none; border-right: none; cursor: pointer;">
@@ -49,9 +49,9 @@
 
         <div
             style="margin: 15px 0 25px 0; padding: 15px; border: 1px solid #d1d3d5; border-radius: 8px; background-color: #f6f9f7;">
-            <h5 style="margin-top: 0;">Survey Year Management</h5>
+            <h5 style="margin-top: 0;">Audit Year Management</h5>
             <p style="margin: 5px 0 15px 0;">
-                Active Survey Year:
+                Active Audit Year:
                 <strong>@(activeSurveyYear is null ? "None" : activeSurveyYear.Year.ToString())</strong>
                 (@(activeSurveyYear is null ? "Unknown" : activeSurveyYear.Status.ToString()))
             </p>
@@ -136,7 +136,7 @@
             <div style="margin-top: 40px; padding: 20px; border: 2px solid #387c2b; border-radius: 8px; background-color: #fffaec;">
                 <h4 style="color: #387c2b; margin-top: 0;">⚠️ Danger Zone</h4>
                 <p style="color: #5f6062; margin-bottom: 15px;">
-                    <strong>Warning:</strong> This action will permanently delete ALL survey responses from the database.
+                    <strong>Warning:</strong> This action will permanently delete ALL audit responses from the database.
                     Sections and questions will remain intact. This cannot be undone!
                 </p>
                 <button @onclick="ClearAllResponses"
@@ -192,7 +192,7 @@ else if (AuthStateService.IsAdmin && activeTab == "users")
                         <div style="font-size: 13px; color: #5f6062; margin-bottom: 4px;"><strong>Name:</strong> @(string.IsNullOrWhiteSpace(selectedUser.FullName) ? "N/A" : selectedUser.FullName)</div>
                         <div style="font-size: 13px; color: #5f6062;"><strong>Role:</strong> @selectedUser.Role</div>
                         <div style="margin-top: 10px; font-size: 13px; color: #5f6062;">
-                            This will delete the account and related responses, survey statuses, and facility mappings for this user.
+                            This will delete the account and related responses, audit statuses, and facility mappings for this user.
                         </div>
                     </div>
                 }
@@ -284,7 +284,7 @@ else if (AuthStateService.IsAdmin && activeTab == "logs")
             }
 else if (activeTab == "locks")
             {
-                <h4 style="margin-top: 20px;">Manage Survey Locks</h4>
+                <h4 style="margin-top: 20px;">Manage Audit Locks</h4>
 
                 @if (!string.IsNullOrWhiteSpace(lockMessage))
                 {
@@ -314,7 +314,7 @@ else if (activeTab == "locks")
 
                 @if (!surveyLocks.Any())
                 {
-                    <p><em>No surveys match the current lock filter.</em></p>
+                    <p><em>No audits match the current lock filter.</em></p>
                 }
                 else
                 {
@@ -333,7 +333,7 @@ else if (activeTab == "locks")
                                     <span class="fw-accordion-chevron">@(isExpanded ? "▼" : "▶")</span>
                                     @facilityKey
                                 </h5>
-                                <span style="font-size: 13px; color: #5f6062;">@facilityGroup.Count() survey record(s)</span>
+                                <span style="font-size: 13px; color: #5f6062;">@facilityGroup.Count() audit record(s)</span>
                             </div>
 
                             @* <div style="margin-top: 8px;">    // This has been removed; it is a big progress bar that is not needed
@@ -395,10 +395,10 @@ else if (activeTab == "locks")
                         <div style="background: white; padding: 28px 32px; border-radius: 8px; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
                             <h4 style="margin-top: 0; color: #196887;">Confirm Lock Change</h4>
                             <p style="color: #5f6062; margin-bottom: 18px;">
-                                @(pendingLockState ? "Lock" : "Unlock") survey for <strong>@pendingLockUserName</strong> in <strong>@pendingLockFacilityName</strong>?
+                                @(pendingLockState ? "Lock" : "Unlock") audit for <strong>@pendingLockUserName</strong> in <strong>@pendingLockFacilityName</strong>?
                             </p>
                             <p style="color: #5f6062; margin-top: 0; margin-bottom: 24px; font-size: 13px;">
-                                @(pendingLockState ? "Locking prevents editing until an admin or manager unlocks it." : "Unlocking allows the user to continue editing their survey.")
+                                @(pendingLockState ? "Locking prevents editing until an admin or manager unlocks it." : "Unlocking allows the user to continue editing their audit.")
                             </p>
                             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                                 <button @onclick="ConfirmLockChange"
@@ -531,7 +531,7 @@ else if (activeTab == "locks")
         SurveyYearMessageIsError = false;
 
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
-            "Archive the current ACTIVE survey year and create the next year as ACTIVE?");
+            "Archive the current ACTIVE audit year and create the next year as ACTIVE?");
 
         if (!confirmed)
         {
@@ -543,7 +543,7 @@ else if (activeTab == "locks")
             var next = await SurveyService.ArchiveActiveAndCreateNextAsync();
             await LogActionAsync($"Archived current survey year and created ACTIVE survey year {next.Year}");
 
-            SurveyYearMessage = $"Survey year {next.Year} is now ACTIVE. Previous year was archived.";
+            SurveyYearMessage = $"Audit year {next.Year} is now ACTIVE. Previous year was archived.";
             await LoadSurveyEntities();
             await LoadSections();
         }
@@ -564,7 +564,7 @@ else if (activeTab == "locks")
             await SurveyService.SetActiveSurveyYearAsync(SurveyYear);
             await LogActionAsync($"Set survey entity {SurveyYear} as ACTIVE");
 
-            SurveyYearMessage = "Selected survey year is now ACTIVE.";
+            SurveyYearMessage = "Selected audit year is now ACTIVE.";
             await LoadSurveyEntities();
             await LoadSections();
         }
@@ -838,7 +838,7 @@ else if (activeTab == "locks")
         clearResponsesMessageIsError = false;
 
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
-            "This will create a database backup and permanently delete all survey responses. Continue?");
+            "This will create a database backup and permanently delete all audit responses. Continue?");
 
         if (!confirmed)
         {
@@ -923,7 +923,7 @@ else if (activeTab == "locks")
 
         var confirmed = await JSRuntime.InvokeAsync<bool>(
             "confirm",
-            $"Delete user '{selectedUser.Email}' and all related data (responses, survey statuses, and facility mappings)? This cannot be undone.");
+            $"Delete user '{selectedUser.Email}' and all related data (responses, audit statuses, and facility mappings)? This cannot be undone.");
 
         if (!confirmed)
         {
@@ -950,7 +950,7 @@ else if (activeTab == "locks")
             if (deleteResult.Success)
             {
                 await LogActionAsync($"Deleted user '{selectedUser.Email}' (Id: {selectedUser.Id}); responses={deleteResult.DeletedResponses}, statuses={deleteResult.DeletedStatuses}, communities={deleteResult.DeletedCommunities}");
-                userMessage = $"Deleted '{selectedUser.Email}'. Removed {deleteResult.DeletedResponses} response(s), {deleteResult.DeletedStatuses} survey status row(s), and {deleteResult.DeletedCommunities} facility mapping row(s).";
+                userMessage = $"Deleted '{selectedUser.Email}'. Removed {deleteResult.DeletedResponses} response(s), {deleteResult.DeletedStatuses} audit status row(s), and {deleteResult.DeletedCommunities} facility mapping row(s).";
                 userMessageIsError = false;
                 selectedUserIdForDeletion = string.Empty;
                 await LoadUsers();
@@ -1082,7 +1082,7 @@ else if (activeTab == "locks")
         catch (Exception ex)
         {
             lockMessageIsError = true;
-            lockMessage = $"Unable to load survey locks: {ex.Message}";
+            lockMessage = $"Unable to load audit locks: {ex.Message}";
             surveyLocks = new List<SurveyLockRow>();
         }
     }
@@ -1120,7 +1120,7 @@ else if (activeTab == "locks")
         if (AuthStateService.IsManager && nextState)
         {
             lockMessageIsError = true;
-            lockMessage = "Managers can only unlock surveys.";
+            lockMessage = "Managers can only unlock audits.";
             return;
         }
 
@@ -1169,7 +1169,7 @@ else if (activeTab == "locks")
             }
             else
             {
-                lockMessage = pendingLockState ? "Survey locked successfully." : "Survey unlocked successfully.";
+                lockMessage = pendingLockState ? "Audit locked successfully." : "Audit unlocked successfully.";
                 await LogActionAsync($"{(pendingLockState ? "Locked" : "Unlocked")} survey for user {pendingLockUserId.Value}, community {(pendingLockCommunityKey?.ToString() ?? "N/A")}");
             }
         }

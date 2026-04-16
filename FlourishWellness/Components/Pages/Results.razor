@@ -10,9 +10,9 @@
 @inject LogService LogService
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Survey Results</PageTitle>
+<PageTitle>Audit Results</PageTitle>
 
-<h3>Survey Results</h3>
+<h3>Audit Results</h3>
 
 @if (sections is null)
 {
@@ -20,11 +20,11 @@
 }
 else if (!sections.Any())
 {
-    <p><em>No survey data available yet.</em></p>
+    <p><em>No audit data available yet.</em></p>
 }
 else if (!HasAnyResponses(sections))
 {
-    <p><em>No completed survey responses are available yet.</em></p>
+    <p><em>No completed audit responses are available yet.</em></p>
 }
 else
 {
@@ -273,7 +273,7 @@ else
 
         var bytes = Encoding.UTF8.GetBytes(csv.ToString());
         var base64 = Convert.ToBase64String(bytes);
-        var fileName = $"SurveyResults_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        var fileName = $"AuditResults_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
 
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
     }

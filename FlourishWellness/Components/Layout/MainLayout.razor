@@ -195,7 +195,7 @@
         if (onSurveyPage)
         {
             var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
-                "Switching facility will reload the survey context. Continue?");
+                "Switching facility will reload the audit context. Continue?");
             if (!confirmed)
             {
                 selectedFacilityValue = currentValue;
