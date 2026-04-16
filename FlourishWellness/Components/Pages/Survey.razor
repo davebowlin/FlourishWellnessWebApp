@@ -12,7 +12,7 @@
 @inject IJSRuntime JSRuntime
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>FlourishWellness Survey</PageTitle>
+<PageTitle>FlourishWellness Audit</PageTitle>
 
 <!-- Floating Progress Bar -->
 <div class="survey-progress-floating">
@@ -34,7 +34,7 @@
 
 @if (sections is null)
 {
-    <p><em>Loading survey...</em></p>
+    <p><em>Loading audit...</em></p>
 }
 else if (!sections.Any())
 {
@@ -45,15 +45,15 @@ else
     @if (communityLocked)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #fffaec; border: 2px solid #ebbc4d; border-radius: 5px; color: #5f6062;">
-            <h4 style="margin-top: 0;">Survey Year Archived</h4>
-            <p style="margin: 0;">This survey year has been archived by an administrator. No further changes are permitted.</p>
+            <h4 style="margin-top: 0;">Audit Year Archived</h4>
+            <p style="margin: 0;">This audit year has been archived by an administrator. No further changes are permitted.</p>
         </div>
     }
     else if (submitted)
     {
         <div style="padding: 20px; margin-bottom: 20px; background-color: #d8e2b4; border: 1px solid #9fb456; border-radius: 5px; color: #387c2b;">
-            <h4>Survey submitted and locked</h4>
-            <p>This survey is locked for editing. A manager or admin must unlock it before any changes can be made.</p>
+            <h4>Audit submitted and locked</h4>
+            <p>This audit is locked for editing. A manager or admin must unlock it before any changes can be made.</p>
         </div>
     }
 
@@ -110,9 +110,9 @@ else
     {
         <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 2000;">
             <div style="background: white; padding: 30px 36px; border-radius: 8px; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
-                <h4 style="margin-top: 0; color: #196887;">Submit and Lock Survey</h4>
+                <h4 style="margin-top: 0; color: #196887;">Submit and Lock Audit</h4>
                 <p style="color: #5f6062; margin-bottom: 24px;">
-                    Submitting will lock this survey and prevent further edits. Only a manager or admin can unlock it.
+                    Submitting will lock this audit and prevent further edits. Only a manager or admin can unlock it.
                 </p>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
                     <button @onclick="ConfirmSubmitAndLock"

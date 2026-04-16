@@ -48,7 +48,7 @@
                     <input value="Not Yet Implemented" readonly />
                 </div>
                 <div class="ap-field">
-                    <label>Date Audit Completed</label>
+    <label>Date Audit Completed</label>
                     <input value="@DateAuditCompletedText" readonly />
                 </div>
                 <div class="ap-field">
@@ -60,6 +60,34 @@
                     <input type="date" value="@ToDateInputValue(plan.DateOfApprovalByRdo)" @onchange="OnDateApprovalByRdoChanged" />
                 </div>
             </div>
+        </section>
+
+        <section class="ap-card ap-export-card">
+            <h3>Export to PDF</h3>
+            <p class="ap-export-hint">Enter a filename and click Export. The PDF will be formatted as a Community Audit Action Plan document.</p>
+            <div class="ap-export-row">
+                <div class="ap-field ap-export-name-field">
+                    <label>Filename</label>
+                    <div class="ap-export-filename-wrap">
+                        <input @bind="pdfFileName" @bind:event="oninput" placeholder="e.g. MillCreek_ActionPlan_2026" />
+                        <span class="ap-export-ext">.pdf</span>
+                    </div>
+                </div>
+                <button class="ap-btn ap-btn-export" @onclick="ExportToPdf" disabled="@isExporting">
+                    @if (isExporting)
+                    {
+                        <span>Generating…</span>
+                    }
+                    else
+                    {
+                        <span>⬇ Export to PDF</span>
+                    }
+                </button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(exportMessage))
+            {
+                <div class="ap-export-msg">@exportMessage</div>
+            }
         </section>
 
         @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -79,26 +107,20 @@
                 </div>
 
                 <div class="ap-grid">
-                    <div class="ap-field">
-                        <label>Section (Focus)</label>
-                        <select value="@GetNullableIntValue(growthArea.SectionId)" @onchange="(e => OnSectionChanged(growthArea, e.Value?.ToString()))">
-                            <option value="">-- Select section --</option>
-                            @foreach (var sectionOption in GetSectionOptionsForArea(growthArea))
+                    <div class="ap-field ap-wide">
+                        <label>Question</label>
+                        <select value="@GetNullableIntValue(growthArea.QuestionId)" @onchange="(e => OnQuestionChanged(growthArea, e.Value?.ToString()))">
+                            <option value="">-- Select question --</option>
+                            @foreach (var question in GetAllQuestionOptionsForArea(growthArea))
                             {
-                                <option value="@sectionOption.Id">@sectionOption.Name</option>
+                                <option value="@question.QuestionId">@question.QuestionText</option>
                             }
                         </select>
                     </div>
 
                     <div class="ap-field">
-                        <label>Question</label>
-                        <select value="@GetNullableIntValue(growthArea.QuestionId)" @onchange="(e => OnQuestionChanged(growthArea, e.Value?.ToString()))" disabled="@(growthArea.SectionId == null)">
-                            <option value="">-- Select question --</option>
-                            @foreach (var question in GetQuestionOptionsForArea(growthArea))
-                            {
-                                <option value="@question.QuestionId">@question.QuestionText</option>
-                            }
-                        </select>
+                        <label>Section (Focus)</label>
+                        <input value="@GetSectionNameForGrowthArea(growthArea)" readonly />
                     </div>
 
                     <div class="ap-field">
@@ -112,22 +134,23 @@
                     </div>
 
                     <div class="ap-field ap-wide">
-                        <label>Focus</label>
-                        <input value="@GetSectionNameForGrowthArea(growthArea)" readonly />
-                    </div>
-
-                    <div class="ap-field ap-wide">
                         <label>SMART Goal</label>
                         <textarea rows="3" @onchange="(e => OnSmartGoalChanged(growthArea, e.Value?.ToString()))">@growthArea.SmartGoal</textarea>
                     </div>
                 </div>
 
-                <p class="ap-steps-label">Action Steps (include action, responsible party, and target date)</p>
+                <p class="ap-steps-label">Action Steps</p>
+                <div class="ap-step-headers">
+                    <span>Action</span>
+                    <span>Responsible Party</span>
+                    <span>Target Date</span>
+                    <span>Status</span>
+                </div>
 
                 @foreach (var step in growthArea.ActionSteps)
                 {
                     <div class="ap-step-row" @key="step.Id">
-                        <input value="@step.Action" @onchange="(e => OnStepActionChanged(growthArea, step, e.Value?.ToString()))" placeholder="Action" />
+                        <input value="@step.Action" @onchange="(e => OnStepActionChanged(growthArea, step, e.Value?.ToString()))" placeholder="Action" maxlength="256" />
                         <input value="@step.ResponsibleParty" @onchange="(e => OnStepResponsiblePartyChanged(growthArea, step, e.Value?.ToString()))" placeholder="Responsible party" />
                         <input type="date" value="@ToDateInputValue(step.TargetDate)" @onchange="(e => OnStepTargetDateChanged(growthArea, step, e.Value?.ToString()))" />
                         <select value="@step.Status" @onchange="(e => OnStepStatusChanged(growthArea, step, e.Value?.ToString()))">
@@ -190,6 +213,11 @@
     private readonly string[] GrowthStatuses = ["Open", "Complete", "Deferred"];
     private readonly HashSet<int> fullyImplementedQuestionIds = new();
 
+    // PDF export
+    private string pdfFileName = string.Empty;
+    private bool isExporting = false;
+    private string exportMessage = string.Empty;
+
     private bool isLoading = true;
     private string accessMessage = string.Empty;
     private string statusMessage = string.Empty;
@@ -237,7 +265,7 @@
             var isCompleted = await SurveyService.IsSurveyCompletedAsync(AuthStateService.CurrentUser.Id, communityKey);
             if (!isCompleted)
             {
-                accessMessage = "Action Plans become available after a survey is submitted and locked for this facility.";
+                accessMessage = "Action Plans become available after an audit is submitted and locked for this facility.";
                 return;
             }
 
@@ -333,6 +361,12 @@
             && (q.QuestionId == area.QuestionId || !selectedElsewhere.Contains(q.QuestionId)));
     }
 
+    private IEnumerable<QuestionOption> GetAllQuestionOptionsForArea(GrowthAreaModel area)
+    {
+        var selectedElsewhere = GetSelectedQuestionIdsExcluding(area.Id);
+        return questionOptions.Where(q => q.QuestionId == area.QuestionId || !selectedElsewhere.Contains(q.QuestionId));
+    }
+
     private HashSet<int> GetSelectedQuestionIdsExcluding(Guid growthAreaId)
     {
         return growthAreas
@@ -378,6 +412,18 @@
         }
 
         area.QuestionId = parsedQuestionId;
+
+        // Auto-select section based on the chosen question
+        if (parsedQuestionId.HasValue)
+        {
+            var match = questionOptions.FirstOrDefault(q => q.QuestionId == parsedQuestionId.Value);
+            area.SectionId = match?.SectionId;
+        }
+        else
+        {
+            area.SectionId = null;
+        }
+
         area.IsSaved = false;
         statusMessage = string.Empty;
         MarkDirty();
@@ -636,6 +682,67 @@
     {
         _locationChangingReg?.Dispose();
         _ = UpdateBeforeUnloadAsync(false);
+    }
+
+    private async Task ExportToPdf()
+    {
+        exportMessage = string.Empty;
+
+        // Only export growth areas that have at least a section/question or a smart goal
+        var areasWithContent = growthAreas
+            .Where(g => g.QuestionId != null || g.SectionId != null || !string.IsNullOrWhiteSpace(g.SmartGoal))
+            .ToList();
+
+        if (!areasWithContent.Any())
+        {
+            exportMessage = "Add at least one growth area with content before exporting.";
+            return;
+        }
+
+        isExporting = true;
+        StateHasChanged();
+
+        try
+        {
+            var pdfData = new
+            {
+                communityName = CommunityName,
+                executiveDirector = plan.ExecutiveDirector,
+                rdo = string.Empty,
+                dateAuditCompleted = DateAuditCompletedText,
+                dateAuditReviewCall = ToDateInputValue(plan.DateAuditReviewCall),
+                dateApprovalByRdo = ToDateInputValue(plan.DateOfApprovalByRdo),
+                growthAreas = areasWithContent.Select(g => new
+                {
+                    sectionName = GetSectionNameForGrowthArea(g),
+                    smartGoal = g.SmartGoal,
+                    status = g.Status,
+                    actionSteps = g.ActionSteps
+                        .Where(s => !string.IsNullOrWhiteSpace(s.Action) || !string.IsNullOrWhiteSpace(s.ResponsibleParty) || s.TargetDate != null)
+                        .Select(s => new
+                        {
+                            action = s.Action,
+                            responsibleParty = s.ResponsibleParty,
+                            targetDate = ToDateInputValue(s.TargetDate),
+                            status = s.Status
+                        }).ToList()
+                }).ToList()
+            };
+
+            var safeName = string.IsNullOrWhiteSpace(pdfFileName)
+                ? $"ActionPlan_{CommunityName.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}"
+                : pdfFileName.Trim();
+
+            await JSRuntime.InvokeVoidAsync("flourish.exportActionPlanPdf", pdfData, safeName);
+        }
+        catch (Exception ex)
+        {
+            exportMessage = $"Export failed: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+        }
     }
 
     private sealed class ActionPlanPageModel

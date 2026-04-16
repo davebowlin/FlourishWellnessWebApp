@@ -72,6 +72,20 @@
     font-weight: 600;
 }
 
+.ap-step-headers {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr 1fr;
+    gap: 0.6rem;
+    margin-bottom: 0.25rem;
+    padding: 0 0.1rem;
+}
+
+.ap-step-headers span {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #5f6062;
+}
+
 .ap-step-row {
     display: grid;
     grid-template-columns: 2fr 1.5fr 1fr 1fr;
@@ -219,4 +233,89 @@
     .ap-step-row {
         grid-template-columns: 1fr;
     }
+}
+
+/* ── PDF Export card ──────────────────────────────────────────────────────── */
+
+.ap-export-card {
+    border-color: #196887;
+    background-color: #f0f6f9;
+}
+
+.ap-export-card h3 {
+    color: #196887;
+    margin-bottom: 0.2rem;
+}
+
+.ap-export-hint {
+    color: #5f6062;
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+}
+
+.ap-export-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ap-export-name-field {
+    flex: 1;
+    min-width: 220px;
+}
+
+.ap-export-filename-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.ap-export-filename-wrap input {
+    border: 1px solid #d1d3d5;
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    padding: 0.55rem 0.65rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background-color: #fff;
+    flex: 1;
+    min-width: 0;
+}
+
+.ap-export-ext {
+    border: 1px solid #d1d3d5;
+    border-radius: 0 6px 6px 0;
+    padding: 0.55rem 0.6rem;
+    background-color: #f4f5f6;
+    color: #5f6062;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.ap-btn-export {
+    background-color: #196887;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.ap-btn-export:disabled {
+    background-color: #8bb4c6;
+    cursor: not-allowed;
+}
+
+.ap-export-msg {
+    margin-top: 0.6rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 6px;
+    background-color: #fffaec;
+    border: 1px solid #ebbc4d;
+    color: #5f6062;
+    font-size: 0.9rem;
 }
