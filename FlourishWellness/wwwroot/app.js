@@ -140,7 +140,7 @@ flourish.exportActionPlanPdf = async function (data, filename) {
 
     // Wellness logo – centered
     if (wellnessImg) {
-        const imgW = 50, imgH = 33;
+        const imgW = 50, imgH = Math.round(50 * (438 / 601) * 10) / 10;  // preserve 601×438 aspect ratio ≈ 36.4mm
         doc.addImage(wellnessImg, 'PNG', (PAGE_W - imgW) / 2, y, imgW, imgH);
         y += imgH + 4;
     } else {
