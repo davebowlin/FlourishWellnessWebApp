@@ -72,25 +72,34 @@
     font-weight: 600;
 }
 
-.ap-step-headers {
-    display: grid;
-    grid-template-columns: 2fr 1.5fr 1fr 1fr;
-    gap: 0.6rem;
-    margin-bottom: 0.25rem;
-    padding: 0 0.1rem;
-}
-
-.ap-step-headers span {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #5f6062;
-}
-
 .ap-step-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.ap-step-action {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ap-step-subrow {
     display: grid;
-    grid-template-columns: 2fr 1.5fr 1fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr;
     gap: 0.6rem;
-    margin-bottom: 0.55rem;
+}
+
+.ap-step-subfield {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ap-step-subfield label {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: #5f6062;
 }
 
 .ap-step-row input,
@@ -230,7 +239,7 @@
         grid-template-columns: 1fr;
     }
 
-    .ap-step-row {
+    .ap-step-subrow {
         grid-template-columns: 1fr;
     }
 }

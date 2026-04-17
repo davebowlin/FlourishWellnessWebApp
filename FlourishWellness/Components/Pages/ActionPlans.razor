@@ -140,25 +140,29 @@
                 </div>
 
                 <p class="ap-steps-label">Action Steps</p>
-                <div class="ap-step-headers">
-                    <span>Action</span>
-                    <span>Responsible Party</span>
-                    <span>Target Date</span>
-                    <span>Status</span>
-                </div>
-
                 @foreach (var step in growthArea.ActionSteps)
                 {
                     <div class="ap-step-row" @key="step.Id">
-                        <input value="@step.Action" @onchange="(e => OnStepActionChanged(growthArea, step, e.Value?.ToString()))" placeholder="Action" maxlength="256" />
-                        <input value="@step.ResponsibleParty" @onchange="(e => OnStepResponsiblePartyChanged(growthArea, step, e.Value?.ToString()))" placeholder="Responsible party" />
-                        <input type="date" value="@ToDateInputValue(step.TargetDate)" @onchange="(e => OnStepTargetDateChanged(growthArea, step, e.Value?.ToString()))" />
-                        <select value="@step.Status" @onchange="(e => OnStepStatusChanged(growthArea, step, e.Value?.ToString()))">
-                            @foreach (var status in GrowthStatuses)
-                            {
-                                <option value="@status">@status</option>
-                            }
-                        </select>
+                        <input class="ap-step-action" value="@step.Action" @onchange="(e => OnStepActionChanged(growthArea, step, e.Value?.ToString()))" placeholder="Action" maxlength="256" />
+                        <div class="ap-step-subrow">
+                            <div class="ap-step-subfield">
+                                <label>Responsible Party</label>
+                                <input value="@step.ResponsibleParty" @onchange="(e => OnStepResponsiblePartyChanged(growthArea, step, e.Value?.ToString()))" placeholder="Responsible party" />
+                            </div>
+                            <div class="ap-step-subfield">
+                                <label>Target Date</label>
+                                <input type="date" value="@ToDateInputValue(step.TargetDate)" @onchange="(e => OnStepTargetDateChanged(growthArea, step, e.Value?.ToString()))" />
+                            </div>
+                            <div class="ap-step-subfield">
+                                <label>Status</label>
+                                <select value="@step.Status" @onchange="(e => OnStepStatusChanged(growthArea, step, e.Value?.ToString()))">
+                                    @foreach (var status in GrowthStatuses)
+                                    {
+                                        <option value="@status">@status</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 }
 
