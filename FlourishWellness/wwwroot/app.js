@@ -130,48 +130,29 @@ flourish.exportActionPlanPdf = async function (data, filename) {
         return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
     };
 
-    // ── Load images (parallel) ───────────────────────────────────────────────
-    const [americareImg, flourishImg] = await Promise.all([
-        fetchDataUrl('/images/Americare-SL.png'),
-        svgToPng('/images/logo.svg', 300, 200)
-    ]);
+    // ── Load images ──────────────────────────────────────────────────────────
+    const wellnessImg = await fetchDataUrl('/images/wellness.png');
 
     // ═══════════════════════════════════════════════════════════════════════
     //  PAGE 1 – HEADER
     // ═══════════════════════════════════════════════════════════════════════
     y = 14;
 
-    // Americare logo – top left
-    if (americareImg) {
-        doc.addImage(americareImg, 'PNG', ML, y, 34, 17);
+    // Wellness logo – centered
+    if (wellnessImg) {
+        const imgW = 50, imgH = 33;
+        doc.addImage(wellnessImg, 'PNG', (PAGE_W - imgW) / 2, y, imgW, imgH);
+        y += imgH + 4;
+    } else {
+        y += 10;
     }
-
-    // Flourish hummingbird logo – centered
-    if (flourishImg) {
-        const imgW = 28, imgH = 19;
-        doc.addImage(flourishImg, 'PNG', (PAGE_W - imgW) / 2, y - 2, imgW, imgH);
-    }
-
-    // "Flourish" text (large, centered)
-    y += 14;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    setColor(C_PRIMARY);
-    doc.text('Flourish', PAGE_W / 2, y, { align: 'center' });
-
-    // "WELLNESS™" sub-text
-    y += 7;
-    doc.setFontSize(11);
-    setColor(C_DARKGREEN);
-    doc.text('WELLNESS\u2122', PAGE_W / 2, y, { align: 'center' });
 
     // "COMMUNITY AUDIT ACTION PLAN"
-    y += 7;
-    doc.setFontSize(10);
-    setColor(C_DARKGREEN);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(54, 124, 43);   // #367C2B – exact "WELLNESS™" text color sampled from logo
     doc.text('COMMUNITY AUDIT ACTION PLAN', PAGE_W / 2, y, { align: 'center' });
-    y += 4;
+    y += 5;
 
     // Horizontal rule under header
     setDraw(C_LGRAY);
@@ -283,18 +264,28 @@ flourish.exportActionPlanPdf = async function (data, filename) {
         }
         y += 9;
 
-        // ── Action Steps header ─────────────────────────────────────────────
+        // ── Action Steps column headers ─────────────────────────────────────
         checkBreak(14);
+        const NUM_X  = ML + 4;
+        const STEP_X = ML + 11;
+        const STEP_W = PAGE_W - MR - STEP_X;
+        // Column X positions for sub-row fields
+        const RESP_X = STEP_X + STEP_W * 0.46;
+        const TD_X   = STEP_X + STEP_W * 0.67;
+        const STAT_X = STEP_X + STEP_W * 0.85;
+
+        setFill(C_LGRAY);
+        doc.rect(ML, y, CW, 6, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         setColor(C_TEXT);
-        doc.text('Action Steps (include action, responsible party, and target date):', ML + 4, y + 4);
-        y += 8;
+        doc.text('Action',            STEP_X,  y + 4);
+        doc.text('Responsible Party', RESP_X,  y + 4);
+        doc.text('Target Date',       TD_X,    y + 4);
+        doc.text('Status',            STAT_X,  y + 4);
+        y += 6;
 
         // ── Steps ───────────────────────────────────────────────────────────
-        const NUM_X = ML + 8;
-        const STEP_X = ML + 15;
-        const STEP_W = PAGE_W - MR - STEP_X;
         let stepNum = 0;
 
         for (const step of (area.actionSteps || [])) {
@@ -303,33 +294,35 @@ flourish.exportActionPlanPdf = async function (data, filename) {
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
-            const actionLines = doc.splitTextToSize(step.action || '', STEP_W);
-            const rpText = step.responsibleParty ? `Responsible: ${step.responsibleParty}` : '';
-            const tdText = step.targetDate ? `Target Date: ${formatDate(step.targetDate)}` : '';
+            // Action spans full content width
+            const actionLines = doc.splitTextToSize(step.action || '', CW - (STEP_X - ML));
+            const hasSubRow = step.responsibleParty || step.targetDate || step.status;
 
             // Keep the whole step block together on one page
-            const blockH = (actionLines.length * 4.5) + (rpText ? 4.5 : 0) + (tdText ? 4.5 : 0) + 4;
+            const blockH = (actionLines.length * 4.5) + (hasSubRow ? 5 : 0) + 3;
             checkBreak(blockH);
 
+            // Step number
             doc.setFont('helvetica', 'bold');
             setColor(C_TEXT);
             doc.text(String(stepNum), NUM_X, y + 4);
 
+            // Action text (full width)
             doc.setFont('helvetica', 'normal');
+            setColor(C_TEXT);
             doc.text(actionLines, STEP_X, y + 4);
             y += actionLines.length * 4.5;
 
-            if (rpText) {
-                setColor(C_PRIMARY);
-                doc.text(rpText, STEP_X, y + 4);
-                y += 4.5;
-            }
-            if (tdText) {
+            // Sub-row: Responsible Party | Target Date | Status
+            if (hasSubRow) {
+                doc.setFontSize(8);
                 setColor(C_TEXT);
-                doc.text(tdText, STEP_X, y + 4);
-                y += 4.5;
+                if (step.responsibleParty) doc.text(step.responsibleParty, RESP_X, y + 4);
+                if (step.targetDate)       doc.text(formatDate(step.targetDate), TD_X, y + 4);
+                if (step.status)           doc.text(step.status, STAT_X, y + 4);
+                y += 5;
             }
-            y += 4;
+            y += 3;
         }
 
         y += 3;
@@ -342,21 +335,6 @@ flourish.exportActionPlanPdf = async function (data, filename) {
             doc.line(ML, y, PAGE_W - MR, y);
             y += 6;
         }
-    }
-
-    // ── Footer on each page ─────────────────────────────────────────────────
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
-        doc.setPage(p);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        setColor(C_LGRAY);
-        doc.text(
-            `Page ${p} of ${pageCount}  •  Flourish Wellness Community Audit Action Plan`,
-            PAGE_W / 2,
-            PAGE_H - 8,
-            { align: 'center' }
-        );
     }
 
     // ── Save ────────────────────────────────────────────────────────────────
